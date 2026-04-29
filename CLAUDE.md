@@ -62,9 +62,9 @@ Optional ergonomic affordance: a **"Log a reload"** form that takes *(booklets a
 ### Leave
 
 - **Accruals are biweekly, always:** 4.5 hrs AL and 3.0 hrs SL per paycheck Friday, every other Friday. Unlike FSA, leave accrual **does not skip** on 3-paycheck-Friday months — it fires on all 26 paychecks per year.
-- **Caps (use-it-or-lose-it):**
-  - **AL: no cap.** Unbounded.
-  - **SL: 525 hours.** Projections must clip at 525 — that reflects real policy. If a projected balance would exceed 525 in the next 12 months, the excess is lost.
+- **Caps (agency hard limits):**
+  - **AL: 360 hours.** Projection is shown unclipped so the user can see how far over they'd go; UI flags the projected number gold at ≥90% of cap and red if it would exceed.
+  - **SL: 525 hours.** Projections clip at 525 — that reflects real policy. If a projected balance would exceed 525 in the next 12 months, the excess is lost. UI flags gold at ≥90% and red when any hours would be lost.
 - **PTO entry:** per-day hours (typically 7.5 for a full day or 3.75 for a half day), recorded against AL or SL. UI should support date-range entry that fans out to the underlying daily records.
 
 ## State: inputs vs. constants
@@ -99,6 +99,7 @@ Everything else lives behind the scenes. Changing any of these is a code edit + 
 | `FSA.arcContribution` | 40 |
 | `LEAVE.annualAccrual` | 4.5 |
 | `LEAVE.sickAccrual` | 3.0 |
+| `LEAVE.annualCap` | 360 |
 | `LEAVE.sickCap` | 525 |
 | `PAYCHECK_ANCHOR` | 2026-01-02 |
 
@@ -126,7 +127,7 @@ Past entries are preserved (useful for looking back at leave burn). UI default i
 - **D2** = depletion date after a **hypothetical max reload** at D1. Reload spends `min(FSA_at_D1, 345)` via the partial-reload algorithm (see `computeReload` in `lib/projections.js`): booklets first (up to 7), remainder to cash (up to $100).
 - **D3** = same, at D2. Beyond D3 isn't needed — the November FSA-election planning window is ~12 months.
 - **FSA balance at each D** = carried through the hypothetical reloads.
-- **AL in 1 year** = `annual_balance + sum(accruals next 365d) − sum(planned AL use next 365d)`. No cap.
+- **AL in 1 year** = `annual_balance + sum(accruals next 365d) − sum(planned AL use next 365d)`. Shown unclipped; cap (`LEAVE.annualCap = 360`) drives only the warn/danger color.
 - **SL in 1 year** = same, clipped at `LEAVE.sickCap = 525`. Excess is lost per ARC's use-it-or-lose-it policy.
 - **Week equivalents** for leave: `hours / LEAVE.hoursPerWeek` (37.5).
 

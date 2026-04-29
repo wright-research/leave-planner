@@ -85,7 +85,7 @@ const ADJUST_FIELDS = [
   { name: 'pass_balance',   label: 'Pass trips',       step: 1,    min: 0, max: 70 },
   { name: 'cash_balance',   label: 'Cash on card ($)', step: 0.5,  min: 0 },
   { name: 'fund_balance',   label: 'FSA balance ($)',  step: 0.01, min: 0 },
-  { name: 'annual_balance', label: 'Annual leave (h)', step: 0.25, min: 0 },
+  { name: 'annual_balance', label: 'Annual leave (h)', step: 0.25, min: 0, max: LEAVE.annualCap },
   { name: 'sick_balance',   label: 'Sick leave (h)',   step: 0.25, min: 0, max: LEAVE.sickCap },
 ];
 
@@ -389,10 +389,33 @@ function renderBalances(s) {
   });
   const oneYearLabel = addDays(TODAY, 365).toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
 
-  const slClassMod =
-    sl.lost > 0 ? ' balance-card--danger' :
-    sl.balanceIn1Year >= LEAVE.sickCap * 0.9 ? ' balance-card--warn' :
+  const CAP_WARN_RATIO = 0.9;
+  const alStatus =
+    al.balanceIn1Year > LEAVE.annualCap ? 'danger' :
+    al.balanceIn1Year >= LEAVE.annualCap * CAP_WARN_RATIO ? 'warn' :
     '';
+  const slStatus =
+    sl.lost > 0 ? 'danger' :
+    sl.balanceIn1Year >= LEAVE.sickCap * CAP_WARN_RATIO ? 'warn' :
+    '';
+  const projStatusClass = (status) => status ? ` bc-num--${status}` : '';
+  const CAP_TOOLTIPS = {
+    al: {
+      warn:   `Projected to come within 10% of the ${LEAVE.annualCap}h annual leave cap. Plan time off to avoid hitting it.`,
+      danger: `Projection exceeds the ${LEAVE.annualCap}h annual leave cap — you'll stop accruing AL once you hit it. Plan to use leave.`,
+    },
+    sl: {
+      warn:   `Projected to come within 10% of the ${LEAVE.sickCap}h sick leave cap.`,
+      danger: `Projection exceeds the ${LEAVE.sickCap}h sick leave cap. Excess hours are forfeit (use-it-or-lose-it).`,
+    },
+  };
+  const projWithTip = (numText, status, kind, tipId) => {
+    const numHtml = `<span class="bc-num bc-num--proj${projStatusClass(status)}">${numText}</span>`;
+    if (!status) return numHtml;
+    const tip = CAP_TOOLTIPS[kind][status];
+    return `<span class="proj-tip" tabindex="0" aria-describedby="${tipId}">${numHtml}<span class="app-tooltip" role="tooltip" id="${tipId}">${tip}</span></span>`;
+  };
+
   const slSub = sl.lost > 0
     ? `${fmtWeeks(sl.weeksNow)} → ${fmtWeeks(sl.weeksIn1Year)} · <span class="bc-strong">${fmtHours(sl.lost)} lost to cap</span>`
     : `${fmtWeeks(sl.weeksNow)} → ${fmtWeeks(sl.weeksIn1Year)} by ${oneYearLabel}`;
@@ -417,25 +440,25 @@ function renderBalances(s) {
 
   const annual = `
     <div class="balance-card">
-      <div class="bc-label">Annual leave</div>
+      <div class="bc-label"><span class="bc-label-strong">Current</span> <span class="bc-label-arrow">→</span> Projected AL</div>
       <div class="bc-values">
         <div class="bc-pair">
           <span class="bc-num">${fmtHours(today.annual_balance)}</span>
           <span class="bc-arrow">→</span>
-          <span class="bc-num bc-num--proj">${fmtHours(al.balanceIn1Year)}</span>
+          ${projWithTip(fmtHours(al.balanceIn1Year), alStatus, 'al', 'proj-tip-al')}
         </div>
       </div>
       <div class="bc-sub">${alSub}</div>
     </div>`;
 
   const sick = `
-    <div class="balance-card${slClassMod}">
-      <div class="bc-label">Sick leave</div>
+    <div class="balance-card">
+      <div class="bc-label"><span class="bc-label-strong">Current</span> <span class="bc-label-arrow">→</span> Projected SL</div>
       <div class="bc-values">
         <div class="bc-pair">
           <span class="bc-num">${fmtHours(today.sick_balance)}</span>
           <span class="bc-arrow">→</span>
-          <span class="bc-num bc-num--proj">${fmtHours(sl.balanceIn1Year)}</span>
+          ${projWithTip(fmtHours(sl.balanceIn1Year), slStatus, 'sl', 'proj-tip-sl')}
         </div>
       </div>
       <div class="bc-sub">${slSub}</div>
@@ -529,7 +552,7 @@ function resolvePill({ commute, al, sl, entry, isHoliday }) {
   if (al > 0)   return `<span class="pill pill-vacation">Vacation${al !== 7.5 ? ` &middot; ${al}h` : ''}</span>`;
   if (sl > 0)   return `<span class="pill pill-sick">Sick${sl !== 7.5 ? ` &middot; ${sl}h` : ''}</span>`;
   if (entry?.kind === 'holiday' || isHoliday) return `<span class="pill pill-holiday">Holiday</span>`;
-  if (commute) return `<span class="pill pill-commute">2 trips</span>`;
+  if (commute) return `<span class="pill pill-commute">ATL</span>`;
   if (entry?.kind === 'conference') return `<span class="pill pill-conference">Conference</span>`;
   if (entry?.kind === 'wfh')        return `<span class="pill pill-wfh">WFH</span>`;
   // Heuristic fallback for legacy/fixture entries lacking a `kind` field.

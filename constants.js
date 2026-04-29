@@ -30,8 +30,8 @@ export const PAYCHECK_ANCHOR = '2026-01-02';
 export const LEAVE = {
   annualAccrual: 4.5,   // hours per paycheck
   sickAccrual:   3.0,   // hours per paycheck
+  annualCap:     360,   // agency cap on AL hours
   sickCap:       525,   // use-it-or-lose-it; projections clip here
-  // annualCap:   null, // no cap
   hoursPerWeek:  37.5,
 };
 

@@ -280,13 +280,14 @@ h2 {
 #agenda::-webkit-scrollbar-track { background: transparent; }
 
 .cal-grid {
+  --cal-header-h: 1.75rem;
+  --cal-banner-h: 1.85rem;
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
   background: var(--border);
   gap: 1px;
-  border: 1px solid var(--border);
+  box-shadow: 0 0 0 1px var(--border);
   border-radius: 8px;
-  overflow: hidden;
   font-variant-numeric: tabular-nums;
 }
 
@@ -300,20 +301,24 @@ h2 {
   font-weight: 700;
   letter-spacing: 0.1em;
   text-align: center;
-  padding: 0.45rem 0.25rem;
+  height: var(--cal-header-h);
+  line-height: var(--cal-header-h);
+  padding: 0 0.25rem;
 }
 
 .cal-banner {
   grid-column: 1 / -1;
-  background: var(--accent-soft);
+  background: linear-gradient(var(--accent-soft), var(--accent-soft)), var(--surface);
   color: var(--accent);
   font-size: 0.7rem;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.12em;
-  padding: 0.45rem 0.85rem;
+  height: var(--cal-banner-h);
+  line-height: var(--cal-banner-h);
+  padding: 0 0.85rem;
   position: sticky;
-  top: 1.85rem;
+  top: var(--cal-header-h);
   z-index: 1;
 }
 
@@ -671,7 +676,67 @@ dialog menu {
   color: var(--text);
 }
 .balance-card .bc-num--proj { color: var(--muted); font-weight: 600; }
+.balance-card .bc-num--proj.bc-num--warn   { color: var(--warn); }
+.balance-card .bc-num--proj.bc-num--danger { color: var(--danger); }
+
+.proj-tip {
+  position: relative;
+  display: inline-flex;
+  align-items: baseline;
+  cursor: help;
+  outline: none;
+  border-radius: 4px;
+}
+.proj-tip:focus-visible {
+  box-shadow: 0 0 0 2px var(--accent-ring);
+}
+.proj-tip .app-tooltip {
+  position: absolute;
+  bottom: calc(100% + 10px);
+  left: 50%;
+  transform: translateX(-50%) translateY(4px);
+  width: max-content;
+  max-width: 240px;
+  padding: 0.55rem 0.7rem;
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: var(--shadow-pop);
+  font-size: 0.76rem;
+  font-weight: 500;
+  line-height: 1.4;
+  letter-spacing: 0;
+  text-transform: none;
+  text-align: left;
+  white-space: normal;
+  font-variant-numeric: normal;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.12s ease, transform 0.12s ease;
+  z-index: 20;
+}
+.proj-tip .app-tooltip::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  bottom: -5px;
+  width: 9px;
+  height: 9px;
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  transform: translateX(-50%) rotate(45deg);
+}
+.proj-tip:hover .app-tooltip,
+.proj-tip:focus-visible .app-tooltip,
+.proj-tip:focus-within .app-tooltip {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
 .balance-card .bc-arrow     { color: var(--muted-2); font-weight: 400; font-size: 1.1rem; }
+.balance-card .bc-label-strong { color: var(--text); }
+.balance-card .bc-label-arrow  { color: var(--muted-2); font-weight: 400; }
 .balance-card .bc-unit {
   font-size: 0.78rem;
   color: var(--muted);
@@ -684,11 +749,6 @@ dialog menu {
   margin-top: -0.1rem;
 }
 .balance-card .bc-sub .bc-strong { color: var(--text); font-weight: 600; }
-
-.balance-card--warn   { background: var(--warn-bg);   border-color: var(--warn-border); }
-.balance-card--warn   .bc-label { color: var(--warn); }
-.balance-card--danger { background: var(--danger-bg); border-color: var(--danger-border); }
-.balance-card--danger .bc-label { color: var(--danger); }
 
 .balances-header {
   display: flex;
