@@ -144,7 +144,7 @@ header {
 h1 {
   margin: 0;
   font-family: "Plus Jakarta Sans", "Inter", system-ui, sans-serif;
-  font-size: 2rem;
+  font-size: clamp(1.4rem, 5vw, 2rem);
   font-weight: 800;
   letter-spacing: -0.03em;
   color: var(--accent);
@@ -175,6 +175,7 @@ h2 {
 #theme-toggle {
   width: 2.4rem;
   height: 2.4rem;
+  flex-shrink: 0;
   padding: 0;
   border-radius: 999px;
   background: var(--surface);
