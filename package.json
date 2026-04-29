@@ -1,0 +1,6 @@
+{
+  "name": "depletion-sked",
+  "private": true,
+  "type": "module",
+  "description": "Marks .js files as ES modules for Node-based testing. No build step, no runtime deps."
+}

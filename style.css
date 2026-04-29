@@ -1,0 +1,895 @@
+/* --- Theme tokens ----------------------------------------------------- */
+
+:root {
+  /* Light mode (default) — neutral grays + Dark Teal / Rosy Copper / Saffron accents */
+  --bg-from: #f3f4f6;
+  --bg-via:  #f6f7f8;
+  --bg-to:   #fafafa;
+  --surface: #ffffff;
+  --surface-2: #f4f5f6;
+  --surface-hover: #ebedef;
+  --border: #d8dadb;
+  --border-strong: #b8bbbd;
+  --text: #1f2937;
+  --muted: #6b7280;
+  --muted-2: #9ca3af;
+  --accent: #084C61;
+  --accent-hover: #0a5d76;
+  --accent-soft: rgba(8, 76, 97, 0.08);
+  --accent-ring: rgba(8, 76, 97, 0.22);
+  --accent-2: #DB504A;
+  --accent-2-hover: #c4453f;
+  --warn: #92670a;
+  --warn-bg: #fef6dd;
+  --warn-border: #E3B505;
+  --danger: #b91c1c;
+  --danger-bg: #fee2e2;
+  --danger-border: #fca5a5;
+  --shadow-card: 0 1px 2px rgba(15, 23, 42, 0.04), 0 8px 24px rgba(15, 23, 42, 0.06);
+  --shadow-pop:  0 24px 60px rgba(15, 23, 42, 0.18), 0 6px 16px rgba(15, 23, 42, 0.08);
+  --backdrop:    rgba(15, 23, 42, 0.45);
+  --toast-bg:    #084C61;
+  --toast-fg:    #ffffff;
+  --pill-commute-bg:    #dbeafe;
+  --pill-commute-fg:    #1d4ed8;
+  --pill-wfh-bg:        #dcfce7;
+  --pill-wfh-fg:        #15803d;
+  --pill-conference-bg: #ede9fe;
+  --pill-conference-fg: #6d28d9;
+  /* Holiday / Vacation / Sick all share one "time off" color so the calendar
+     reads at a glance — distinct labels, unified visual treatment. */
+  --pill-timeoff-bg:    #ffedd5;
+  --pill-timeoff-fg:    #c2410c;
+}
+
+[data-theme="dark"] {
+  --bg-from: #0f1419;
+  --bg-via:  #11171d;
+  --bg-to:   #131a21;
+  --surface: #1a2129;
+  --surface-2: #20282f;
+  --surface-hover: #2a323a;
+  --border: #2d3640;
+  --border-strong: #404a55;
+  --text: #e5e7eb;
+  --muted: #9ca3af;
+  --muted-2: #6b7280;
+  --accent: #4DA3BD;
+  --accent-hover: #6cb6cd;
+  --accent-soft: rgba(77, 163, 189, 0.15);
+  --accent-ring: rgba(77, 163, 189, 0.3);
+  --accent-2: #E5746E;
+  --accent-2-hover: #ea8d88;
+  --warn: #E3B505;
+  --warn-bg: rgba(227, 181, 5, 0.12);
+  --warn-border: rgba(227, 181, 5, 0.35);
+  --danger: #fca5a5;
+  --danger-bg: rgba(248, 113, 113, 0.12);
+  --danger-border: rgba(248, 113, 113, 0.35);
+  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.4), 0 12px 32px rgba(0, 0, 0, 0.4);
+  --shadow-pop:  0 24px 60px rgba(0, 0, 0, 0.6), 0 6px 16px rgba(0, 0, 0, 0.4);
+  --backdrop:    rgba(2, 6, 23, 0.7);
+  --toast-bg:    #4DA3BD;
+  --toast-fg:    #0f1419;
+  --pill-commute-bg:    rgba(96, 165, 250, 0.18);
+  --pill-commute-fg:    #93c5fd;
+  --pill-wfh-bg:        rgba(74, 222, 128, 0.18);
+  --pill-wfh-fg:        #86efac;
+  --pill-conference-bg: rgba(167, 139, 250, 0.20);
+  --pill-conference-fg: #c4b5fd;
+  --pill-timeoff-bg:    rgba(251, 146, 60, 0.18);
+  --pill-timeoff-fg:    #fdba74;
+}
+
+/* --- Base ------------------------------------------------------------- */
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+  background: linear-gradient(160deg, var(--bg-from) 0%, var(--bg-via) 50%, var(--bg-to) 100%);
+  background-attachment: fixed;
+  color: var(--text);
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+main#app {
+  max-width: 1320px;
+  margin: 0 auto;
+  /* padding-top matches the grid's row-gap so the header sits visually
+     centered in the band between the top of the viewport and the first
+     row of cards (overridden per breakpoint below). */
+  padding: 1rem 1.25rem 1.5rem;
+}
+
+#main {
+  display: grid;
+  grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr);
+  grid-template-rows: auto auto auto;
+  grid-template-areas:
+    "header   header"
+    "balances calendar"
+    "summary  calendar";
+  gap: 1rem;
+  align-items: start;
+}
+#main > header   { grid-area: header; }
+#main > #summary { grid-area: summary; }
+#main > #balances { grid-area: balances; }
+/* min-height: 0 lets the calendar shrink below its natural content height,
+   so the row heights are driven by summary + balances. The agenda inside
+   then flexes to fill whatever space is left and scrolls past it. */
+#main > #calendar { grid-area: calendar; align-self: stretch; min-height: 0; }
+
+@media (max-width: 900px) {
+  #main {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas:
+      "header"
+      "balances"
+      "summary"
+      "calendar";
+  }
+}
+
+header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+h1 {
+  margin: 0;
+  font-family: "Plus Jakarta Sans", "Inter", system-ui, sans-serif;
+  font-size: 2rem;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  color: var(--accent);
+}
+h2 {
+  margin: 0 0 1rem;
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--muted);
+}
+
+/* --- Cards ------------------------------------------------------------ */
+
+.card {
+  background: var(--surface);
+  border-radius: 16px;
+  padding: 1.25rem;
+  margin-bottom: 0;
+  box-shadow: var(--shadow-card);
+}
+#summary.card { padding: 1.4rem 1.4rem 1.5rem; }
+#calendar.card { display: flex; flex-direction: column; }
+
+/* --- Theme toggle button --------------------------------------------- */
+
+#theme-toggle {
+  width: 2.4rem;
+  height: 2.4rem;
+  padding: 0;
+  border-radius: 999px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--muted);
+  cursor: pointer;
+  box-shadow: var(--shadow-card);
+  transition: color 0.15s ease, background 0.15s ease;
+}
+#theme-toggle:hover { color: var(--accent); background: var(--surface-hover); }
+#theme-toggle svg { width: 1.1rem; height: 1.1rem; }
+.icon-sun { display: none; }
+[data-theme="dark"] .icon-sun  { display: inline; }
+[data-theme="dark"] .icon-moon { display: none; }
+
+/* --- Calendar header ------------------------------------------------- */
+
+.calendar-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.5rem;
+}
+.calendar-header h2 { margin-bottom: 0; }
+
+/* --- Toggle switch --------------------------------------------------- */
+
+.switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  font-size: 0.8125rem;
+  color: var(--muted);
+  cursor: pointer;
+  user-select: none;
+}
+.switch input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+  width: 0;
+  height: 0;
+}
+.switch-track {
+  width: 2.1rem;
+  height: 1.15rem;
+  border-radius: 999px;
+  background: var(--border-strong);
+  position: relative;
+  transition: background 0.15s ease;
+  flex-shrink: 0;
+}
+.switch-thumb {
+  position: absolute;
+  top: 0.125rem;
+  left: 0.125rem;
+  width: 0.9rem;
+  height: 0.9rem;
+  background: #ffffff;
+  border-radius: 50%;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+  transition: transform 0.15s ease;
+}
+.switch input:checked + .switch-track { background: var(--accent); }
+.switch input:checked + .switch-track .switch-thumb { transform: translateX(0.95rem); }
+.switch input:focus-visible + .switch-track { box-shadow: 0 0 0 3px var(--accent-ring); }
+.switch-label { font-weight: 500; }
+
+/* --- Calendar grid --------------------------------------------------- */
+
+#agenda {
+  margin: 0.75rem 0 0;
+  flex: 1 1 auto;
+  min-height: 0;
+  max-height: calc(100vh - 10rem);
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-strong) transparent;
+}
+@media (max-width: 900px) {
+  #agenda { max-height: 28rem; }
+}
+#agenda::-webkit-scrollbar { width: 8px; }
+#agenda::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 4px; }
+#agenda::-webkit-scrollbar-track { background: transparent; }
+
+.cal-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  background: var(--border);
+  gap: 1px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+  font-variant-numeric: tabular-nums;
+}
+
+.cal-header {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: var(--surface-2);
+  color: var(--muted);
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-align: center;
+  padding: 0.45rem 0.25rem;
+}
+
+.cal-banner {
+  grid-column: 1 / -1;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  padding: 0.45rem 0.85rem;
+  position: sticky;
+  top: 1.85rem;
+  z-index: 1;
+}
+
+.cal-cell {
+  position: relative;
+  background: var(--surface);
+  min-height: 4.5rem;
+  padding: 0.4rem 0.45rem 0.45rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  cursor: pointer;
+  user-select: none;
+  transition: background 0.1s ease;
+}
+.cal-cell:hover { background: var(--surface-hover); }
+.cal-cell.cal-month-odd { background: var(--surface-2); }
+.cal-cell.cal-month-odd:hover { background: var(--surface-hover); }
+.cal-cell.past { opacity: 0.55; }
+.cal-cell.today {
+  background: var(--accent-soft);
+  box-shadow: inset 0 0 0 2px var(--accent);
+}
+.cal-cell.today .cal-day { color: var(--accent); }
+
+.cal-cell .cal-day {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--text);
+  line-height: 1;
+}
+
+.cal-cell .cal-pill-slot {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.2rem;
+}
+.cal-cell .cal-pill-slot .pill {
+  font-size: 0.62rem;
+  padding: 0.12rem 0.4rem;
+  letter-spacing: 0.04em;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cal-cell .cal-note {
+  position: absolute;
+  top: 0.45rem;
+  right: 0.45rem;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--muted-2);
+  box-shadow: 0 0 0 1px var(--surface);
+}
+
+#agenda .empty {
+  padding: 2rem 1rem;
+  text-align: center;
+  color: var(--muted);
+}
+
+/* --- Pills ----------------------------------------------------------- */
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  padding: 0.22rem 0.6rem;
+  border-radius: 999px;
+  line-height: 1.4;
+  text-transform: uppercase;
+}
+.pill-commute    { background: var(--pill-commute-bg);    color: var(--pill-commute-fg); }
+.pill-wfh        { background: var(--pill-wfh-bg);        color: var(--pill-wfh-fg); }
+.pill-conference { background: var(--pill-conference-bg); color: var(--pill-conference-fg); }
+.pill-vacation,
+.pill-holiday,
+.pill-sick       { background: var(--pill-timeoff-bg);    color: var(--pill-timeoff-fg); }
+
+ol#agenda li.empty {
+  display: block;
+  color: var(--muted);
+  text-align: center;
+  padding: 1.5rem;
+  font-size: 0.875rem;
+}
+
+/* --- Buttons --------------------------------------------------------- */
+
+button {
+  font: inherit;
+  padding: 0.5rem 0.95rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--text);
+  cursor: pointer;
+  transition: background 0.12s ease, border-color 0.12s ease, box-shadow 0.12s ease, color 0.12s ease;
+}
+button:hover { background: var(--surface-hover); border-color: var(--border-strong); }
+
+.primary-btn {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+  font-weight: 600;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06), 0 4px 12px var(--accent-ring);
+}
+.primary-btn:hover {
+  background: var(--accent-hover);
+  border-color: var(--accent-hover);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06), 0 6px 18px var(--accent-ring);
+}
+
+/* --- Dialogs --------------------------------------------------------- */
+
+dialog {
+  border: none;
+  border-radius: 16px;
+  padding: 1.75rem;
+  max-width: 420px;
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: var(--shadow-pop);
+}
+dialog::backdrop { background: var(--backdrop); backdrop-filter: blur(2px); }
+
+dialog form { display: flex; flex-direction: column; gap: 0.85rem; }
+dialog h3 { margin: 0 0 0.25rem; font-size: 1.15rem; font-weight: 700; letter-spacing: -0.01em; }
+dialog label { display: flex; flex-direction: column; font-size: 0.8125rem; gap: 0.3rem; color: var(--muted); }
+dialog input, dialog select, dialog textarea {
+  padding: 0.55rem 0.7rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font: inherit;
+  color: var(--text);
+  background: var(--surface);
+}
+dialog input:focus, dialog select:focus, dialog textarea:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-ring);
+}
+dialog menu {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  padding: 0;
+  margin: 0.5rem 0 0;
+}
+
+.demo-banner {
+  background: var(--warn-bg);
+  color: var(--warn);
+  padding: 0.5rem 1rem;
+  text-align: center;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  border-bottom: 1px solid var(--warn-border);
+}
+
+/* --- Projections (Zone 1 hero) --------------------------------------- */
+
+.proj-section { margin-top: 1.5rem; }
+.proj-section:first-child { margin-top: 0.5rem; }
+
+.proj-section-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.65rem;
+}
+.proj-section-header h3 {
+  margin: 0;
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--muted);
+}
+.proj-section-header .proj-subnote {
+  font-size: 0.8125rem;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 0.75rem;
+}
+
+.tile {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 0.95rem 1.05rem 1.05rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  min-height: 6.25rem;
+}
+.tile-label {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+  font-weight: 700;
+}
+.tile-value {
+  font-size: 1.6rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+  margin-top: 0.1rem;
+  color: var(--text);
+}
+.tile-value .arrow {
+  color: var(--muted-2);
+  margin: 0 0.3rem;
+  font-weight: 400;
+}
+.tile-value .empty {
+  font-size: 1rem;
+  font-weight: 500;
+  color: var(--muted);
+  letter-spacing: 0;
+}
+.tile-meta {
+  margin-top: auto;
+  font-size: 0.78rem;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.tile-meta .meta-strong { color: var(--text); font-weight: 600; }
+
+.tile-breakdown {
+  margin-top: auto;
+  padding-top: 0.6rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  font-size: 0.78rem;
+  font-variant-numeric: tabular-nums;
+}
+.tile-breakdown .bd-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 0.75rem;
+}
+.tile-breakdown .bd-label { color: var(--muted); }
+.tile-breakdown .bd-val   { color: var(--text); font-weight: 600; }
+.tile-breakdown .bd-neg   { color: var(--muted); font-weight: 500; }
+.tile-breakdown .bd-total {
+  border-top: 1px solid var(--border);
+  padding-top: 0.35rem;
+  margin-top: 0.1rem;
+}
+
+.tile-warn {
+  background: var(--warn-bg);
+  border-color: var(--warn-border);
+}
+.tile-warn .tile-label { color: var(--warn); }
+
+.tile-danger {
+  background: var(--danger-bg);
+  border-color: var(--danger-border);
+}
+.tile-danger .tile-label { color: var(--danger); }
+
+.tile-empty .tile-value { font-size: 1rem; font-weight: 500; color: var(--muted); }
+
+/* --- Balances -------------------------------------------------------- */
+
+#balances-body {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.balance-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.85rem;
+}
+@media (max-width: 480px) {
+  .balance-grid { grid-template-columns: minmax(0, 1fr); }
+}
+
+.balance-card {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 0.85rem 1rem 0.7rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+.balance-card .bc-label {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+  font-weight: 700;
+}
+.balance-card .bc-values {
+  display: flex;
+  align-items: baseline;
+  gap: 1.5rem;
+  font-variant-numeric: tabular-nums;
+  flex-wrap: wrap;
+}
+.balance-card .bc-pair {
+  display: flex;
+  align-items: baseline;
+  gap: 0.4rem;
+}
+.balance-card .bc-num {
+  font-size: 1.4rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--text);
+}
+.balance-card .bc-num--proj { color: var(--muted); font-weight: 600; }
+.balance-card .bc-arrow     { color: var(--muted-2); font-weight: 400; font-size: 1.1rem; }
+.balance-card .bc-unit {
+  font-size: 0.78rem;
+  color: var(--muted);
+  font-weight: 500;
+}
+.balance-card .bc-sub {
+  font-size: 0.74rem;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  margin-top: -0.1rem;
+}
+.balance-card .bc-sub .bc-strong { color: var(--text); font-weight: 600; }
+
+.balance-card--warn   { background: var(--warn-bg);   border-color: var(--warn-border); }
+.balance-card--warn   .bc-label { color: var(--warn); }
+.balance-card--danger { background: var(--danger-bg); border-color: var(--danger-border); }
+.balance-card--danger .bc-label { color: var(--danger); }
+
+.balances-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+.balances-header h2 { margin-bottom: 0; }
+.bc-adjust {
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 0.3rem 0.7rem;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--accent);
+  cursor: pointer;
+  transition: background 0.12s ease, border-color 0.12s ease;
+}
+.bc-adjust:hover {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+}
+
+.balance-actions { display: flex; }
+.balance-actions #log-reload-btn {
+  flex: 1;
+  background: transparent;
+  border: 1px solid var(--accent);
+  color: var(--accent);
+  box-shadow: none;
+  padding: 0.55rem 1rem;
+  font-weight: 600;
+}
+.balance-actions #log-reload-btn:hover {
+  background: var(--accent-soft);
+  border-color: var(--accent-hover);
+  color: var(--accent-hover);
+}
+
+/* Adjust dialog */
+.adjust-help {
+  margin: 0 0 0.85rem;
+  font-size: 0.82rem;
+  color: var(--muted);
+  line-height: 1.4;
+}
+#adjust-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+  margin-bottom: 1rem;
+}
+#adjust-fields label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  font-size: 0.78rem;
+}
+#adjust-fields label > span { color: var(--muted); font-weight: 600; }
+#adjust-fields input {
+  padding: 0.5rem 0.65rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font: inherit;
+  font-variant-numeric: tabular-nums;
+  width: 100%;
+  background: var(--surface);
+  color: var(--text);
+}
+#adjust-fields input:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-ring);
+}
+.toast {
+  position: fixed;
+  top: 1rem;
+  left: 50%;
+  transform: translateX(-50%) translateY(-0.5rem);
+  font-size: 0.8125rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--toast-fg);
+  background: var(--toast-bg);
+  padding: 0.45rem 0.95rem;
+  border-radius: 999px;
+  box-shadow: var(--shadow-pop);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.18s ease, transform 0.18s ease;
+  z-index: 1000;
+}
+.toast.show {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
+/* --- Day editor dialog ----------------------------------------------- */
+
+.status-group {
+  border: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+.status-group legend {
+  padding: 0;
+  font-size: 0.8125rem;
+  color: var(--muted);
+  font-weight: 500;
+  margin-bottom: 0.4rem;
+}
+.status-option {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 0.55rem;
+  padding: 0.5rem 0.7rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 0.875rem;
+  color: var(--text);
+  background: var(--surface);
+  transition: background 0.12s ease, border-color 0.12s ease;
+}
+.status-option:hover { background: var(--surface-hover); }
+.status-option:has(input:checked) {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+.status-option input { margin: 0; accent-color: var(--accent); }
+.status-option em {
+  font-style: normal;
+  color: var(--muted);
+  font-size: 0.78rem;
+  margin-left: 0.25rem;
+}
+
+/* --- Day-type segmented control ------------------------------------- */
+
+.day-type-group {
+  border: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+.day-type-group[hidden],
+#day-end-row[hidden] { display: none; }
+.day-type-group legend {
+  padding: 0;
+  font-size: 0.8125rem;
+  color: var(--muted);
+  font-weight: 500;
+  margin-bottom: 0.4rem;
+}
+.segmented {
+  display: flex;
+  gap: 0.25rem;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.25rem;
+}
+.seg-option {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  padding: 0.45rem 0.6rem;
+  border-radius: 6px;
+  font-size: 0.825rem;
+  font-weight: 500;
+  color: var(--muted);
+  text-align: center;
+  transition: background 0.12s ease, color 0.12s ease;
+  position: relative;
+}
+.seg-option input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+  width: 0;
+  height: 0;
+}
+.seg-option:has(input:checked) {
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
+}
+
+.danger-btn {
+  background: var(--surface);
+  border-color: var(--danger-border);
+  color: var(--danger);
+}
+.danger-btn:hover { background: var(--danger-bg); border-color: var(--danger); }
+
+.menu-spacer { flex: 1; }
+
+/* --- Desktop 2-column layout ----------------------------------------- */
+/* Mobile (<1024px): natural document flow stacks all three cards.       */
+/* Desktop (≥1024px): summary + balances on the left, calendar on the    */
+/* right spanning both rows. The agenda keeps its max-height cap so it   */
+/* scrolls internally — without that cap it would explode the grid.      */
+
+@media (min-width: 1024px) {
+  main#app { max-width: 1320px; padding-top: 3rem; }
+
+  #main {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-areas:
+      "header   header"
+      "balances calendar"
+      "summary  calendar";
+    column-gap: 3rem;
+    row-gap: 3rem;
+    align-items: start;
+  }
+
+  #main > header { grid-area: header; }
+  #summary       { grid-area: summary;  margin-bottom: 0; }
+  #balances      { grid-area: balances; margin-bottom: 0; }
+  #calendar      { grid-area: calendar; margin-bottom: 0; }
+
+  /* Calendar stretches to match the left column. Drop agenda's
+     content-driven intrinsic height so the calendar card doesn't push
+     the grid rows past what summary+balances need. */
+  #calendar #agenda {
+    flex: 1 1 0;
+    max-height: none;
+  }
+}

@@ -1,0 +1,541 @@
+// App entry point. Loads state, renders views, hooks up events.
+
+import { DEMO_MODE } from './lib/supabase.js';
+import {
+  state, subscribe, loadAll, setFilter,
+  setAnchor, upsertCalendarEntry, deleteCalendarEntry, logReload,
+} from './lib/store.js';
+import {
+  startOfDay, addDays, formatDate, parseDate,
+  isCommuteDay, tripsAvailable,
+  projectDepletionDates, projectLeave,
+  projectCardBalances, projectFundBalance, projectLeaveBalance,
+} from './lib/projections.js';
+import { getHoliday } from './lib/holidays.js';
+import { LEAVE } from './constants.js';
+
+const $ = (sel) => document.querySelector(sel);
+const TODAY = startOfDay();
+
+// --- Global "Saved!" toast ---
+
+let toastEl = null;
+let toastTimer = null;
+function showToast(msg = 'Saved!') {
+  if (!toastEl) {
+    toastEl = document.createElement('div');
+    toastEl.className = 'toast';
+    toastEl.setAttribute('role', 'status');
+    toastEl.setAttribute('aria-live', 'polite');
+    document.body.appendChild(toastEl);
+  }
+  toastEl.textContent = msg;
+  toastEl.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => toastEl.classList.remove('show'), 1500);
+}
+
+// --- Theme ---
+
+{
+  const stored = localStorage.getItem('theme');
+  const prefersDark = window.matchMedia?.('(prefers-color-scheme: dark)').matches;
+  document.documentElement.dataset.theme = stored ?? (prefersDark ? 'dark' : 'light');
+}
+
+$('#theme-toggle').addEventListener('click', () => {
+  const next = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark';
+  document.documentElement.dataset.theme = next;
+  localStorage.setItem('theme', next);
+});
+
+async function init() {
+  if (DEMO_MODE) {
+    document.title = 'DepletionSked (demo)';
+    const banner = document.createElement('div');
+    banner.className = 'demo-banner';
+    banner.textContent = 'Demo mode — data is seeded from fixtures and changes do not persist.';
+    document.body.prepend(banner);
+  }
+  await loadAll();
+}
+
+// --- Event wiring ---
+
+$('#filter-historic').addEventListener('change', (e) => {
+  // Toggling historic re-anchors the view; let the next render re-scroll to today.
+  renderAgenda._didInitialScroll = false;
+  setFilter('showHistoric', e.target.checked);
+});
+
+// Delegated so buttons survive re-renders inside #balances-body.
+$('#balances').addEventListener('click', (e) => {
+  if (e.target.closest('#log-reload-btn')) {
+    const dlg = $('#reload-dialog');
+    dlg.querySelector('input[name="reload_date"]').value = formatDate(TODAY);
+    dlg.showModal();
+    return;
+  }
+  if (e.target.closest('#adjust-balances-btn')) openAdjustDialog();
+});
+
+// --- Adjust balance dialog ---
+
+const ADJUST_FIELDS = [
+  { name: 'pass_balance',   label: 'Pass trips',       step: 1,    min: 0, max: 70 },
+  { name: 'cash_balance',   label: 'Cash on card ($)', step: 0.5,  min: 0 },
+  { name: 'fund_balance',   label: 'FSA balance ($)',  step: 0.01, min: 0 },
+  { name: 'annual_balance', label: 'Annual leave (h)', step: 0.25, min: 0 },
+  { name: 'sick_balance',   label: 'Sick leave (h)',   step: 0.25, min: 0, max: LEAVE.sickCap },
+];
+
+function openAdjustDialog() {
+  const today = deriveTodayBalances(state);
+  $('#adjust-title').textContent = 'Adjust balances';
+  $('#adjust-help').textContent =
+    'Update any values that drift from reality. Unchanged fields keep their existing calibration date.';
+  $('#adjust-fields').innerHTML = ADJUST_FIELDS.map((f) => {
+    const value = Number(today[f.name]).toFixed(f.step >= 1 ? 0 : 2).replace(/\.?0+$/, '') || '0';
+    const max = f.max != null ? `max="${f.max}"` : '';
+    return `
+      <label>
+        <span>${f.label}</span>
+        <input type="number" name="${f.name}" step="${f.step}" min="${f.min}" ${max} value="${value}" required />
+      </label>`;
+  }).join('');
+  $('#adjust-dialog').showModal();
+}
+
+$('#adjust-form').addEventListener('submit', async (e) => {
+  if (e.submitter?.value !== 'save') return;
+  const fd = new FormData(e.target);
+  const today = deriveTodayBalances(state);
+  // Only patch fields that actually changed — preserves the existing
+  // *_as_of date on untouched fields so projections don't shift.
+  const patch = {};
+  for (const [k, v] of fd.entries()) {
+    const num = Number(v);
+    if (Math.abs(num - Number(today[k])) > 1e-6) patch[k] = num;
+  }
+  if (Object.keys(patch).length === 0) return;
+  await setAnchor(patch);
+  showToast('Saved!');
+});
+
+$('#reload-form').addEventListener('submit', async (e) => {
+  const action = e.submitter?.value;
+  if (action !== 'save') return;
+  const fd = new FormData(e.target);
+  await logReload({
+    reload_date: fd.get('reload_date'),
+    booklets_added: Number(fd.get('booklets_added')),
+    cash_added: Number(fd.get('cash_added')),
+    fsa_spent: Number(fd.get('fsa_spent')),
+    notes: fd.get('notes') || null,
+  });
+  e.target.reset();
+});
+
+// --- Day editor (double-click an agenda row) ---
+
+function deriveStatus(entry, date) {
+  if (entry?.kind === 'holiday') return 'holiday';
+  if (!entry) return date && getHoliday(date) ? 'holiday' : 'commute';
+  if ((entry.annual_used ?? 0) > 0) return 'annual';
+  if ((entry.sick_used ?? 0) > 0) return 'sick';
+  if (entry.kind === 'conference') return 'conference';
+  if (entry.kind === 'wfh') return 'wfh';
+  // Legacy/fixture rows that pre-date the kind field: infer from notes.
+  if (entry.commute_override === 'no') {
+    if (date && getHoliday(date)) return 'holiday';
+    if ((entry.notes || '').toLowerCase().includes('conference')) return 'conference';
+    return 'wfh';
+  }
+  if (entry.commute_override === 'yes') return 'commute';
+  return 'commute';
+}
+
+function deriveDayType(entry) {
+  const hrs = (entry?.annual_used || entry?.sick_used) || 0;
+  return hrs === 3.75 ? 'half' : 'full';
+}
+
+function openDayDialog(dateKey) {
+  const dlg = $('#day-dialog');
+  const form = dlg.querySelector('form');
+  const date = parseDate(dateKey);
+  const entry = state.calendarEntries.get(dateKey);
+
+  form.querySelector('#day-dialog-title').textContent =
+    `Edit ${date.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}`;
+  form.querySelector('input[name="date"]').value = dateKey;
+
+  const status = deriveStatus(entry, date);
+  form.querySelectorAll('input[name="status"]').forEach((r) => { r.checked = r.value === status; });
+
+  const dayType = deriveDayType(entry);
+  form.querySelectorAll('input[name="dayType"]').forEach((r) => { r.checked = r.value === dayType; });
+
+  // For built-in holidays with no stored entry, surface the holiday name
+  // in the notes field so the dialog reflects what's shown on the calendar.
+  form.querySelector('input[name="notes"]').value = entry?.notes ?? getHoliday(date) ?? '';
+  // End date pre-fills with the focused date so the picker has a sensible anchor.
+  form.querySelector('input[name="end"]').value = dateKey;
+
+  form.querySelector('button[value="delete"]').hidden = !entry;
+  updateDayDialogState(form);
+  dlg.showModal();
+}
+
+function updateDayDialogState(form) {
+  const status = form.querySelector('input[name="status"]:checked')?.value;
+  const dayType = form.querySelector('input[name="dayType"]:checked')?.value;
+  const isLeave = status === 'annual' || status === 'sick';
+  const showEnd =
+    (isLeave && dayType !== 'half') ||
+    status === 'wfh' ||
+    status === 'conference' ||
+    status === 'holiday';
+
+  form.querySelector('#day-type-group').hidden = !isLeave;
+  form.querySelector('#day-end-row').hidden = !showEnd;
+}
+
+$('#day-form').addEventListener('change', (e) => {
+  if (e.target.name === 'status' || e.target.name === 'dayType') {
+    updateDayDialogState(e.currentTarget);
+  }
+});
+
+$('#agenda').addEventListener('dblclick', (e) => {
+  const cell = e.target.closest('.cal-cell');
+  if (!cell?.dataset.date) return;
+  openDayDialog(cell.dataset.date);
+});
+
+$('#day-form').addEventListener('submit', async (e) => {
+  const action = e.submitter?.value;
+  const fd = new FormData(e.target);
+  const dateKey = fd.get('date');
+  const start = parseDate(dateKey);
+  const endStr = fd.get('end');
+  const end = endStr ? parseDate(endStr) : start;
+  if (!start || end < start) return;
+
+  if (action === 'delete') {
+    for (let d = start; d <= end; d = addDays(d, 1)) {
+      await deleteCalendarEntry(formatDate(d));
+    }
+    return;
+  }
+  if (action !== 'save') return;
+
+  const status = fd.get('status');
+  const dayType = fd.get('dayType');
+  const notes = fd.get('notes') || null;
+  // Half day = 3.75h on the focused day; Full day(s) = 7.5h per day across range.
+  const hoursPerDay = dayType === 'half' ? 3.75 : 7.5;
+
+  // "Default (commute)" stores no override (null) — the default-commute rule
+  // resolves it. The other four statuses all force commute off.
+  const patch = {
+    annual_used:      status === 'annual' ? hoursPerDay : 0,
+    sick_used:        status === 'sick'   ? hoursPerDay : 0,
+    commute_override: status === 'commute' ? null : 'no',
+    kind:
+      status === 'wfh'        ? 'wfh' :
+      status === 'conference' ? 'conference' :
+      status === 'holiday'    ? 'holiday' :
+      null,
+    notes,
+  };
+
+  for (let d = start; d <= end; d = addDays(d, 1)) {
+    await upsertCalendarEntry(formatDate(d), patch);
+  }
+});
+
+// --- Formatting ---
+
+const fmtMoney = (n) => `$${Number(n).toFixed(2)}`;
+const fmtHours = (n) => `${Number(n).toFixed(1)}h`;
+const fmtWeeks = (n) => `${Number(n).toFixed(1)} wk`;
+const fmtTileDate = (d) => d ? d.toLocaleDateString('en-US', { month: 'long', day: 'numeric' }) : '—';
+
+// --- Renders ---
+
+// Project all five balance anchors forward to today. Returns the same shape
+// as a row from `balances`, but with values reflecting "as of today" instead
+// of "as of the anchor date." The projection consumes the calendar and the
+// reload_log; events at-or-before each anchor are pure history.
+function deriveTodayBalances(s) {
+  const b = s.balances;
+  const card = projectCardBalances({
+    passAnchor:  Number(b.pass_balance),
+    cashAnchor:  Number(b.cash_balance),
+    anchorDate:  parseDate(b.card_as_of),
+    targetDate:  TODAY,
+    calendarEntries: s.calendarEntries,
+    reloadLog:   s.reloadLog,
+  });
+  const fund = projectFundBalance({
+    anchor:      Number(b.fund_balance),
+    anchorDate:  parseDate(b.fund_as_of),
+    targetDate:  TODAY,
+    reloadLog:   s.reloadLog,
+  });
+  const annual = projectLeaveBalance({
+    anchor:      Number(b.annual_balance),
+    anchorDate:  parseDate(b.annual_as_of),
+    targetDate:  TODAY,
+    accrualPerPaycheck: LEAVE.annualAccrual,
+    usedField:   'annual_used',
+    calendarEntries: s.calendarEntries,
+  });
+  const sick = projectLeaveBalance({
+    anchor:      Number(b.sick_balance),
+    anchorDate:  parseDate(b.sick_as_of),
+    targetDate:  TODAY,
+    accrualPerPaycheck: LEAVE.sickAccrual,
+    usedField:   'sick_used',
+    calendarEntries: s.calendarEntries,
+    cap:         LEAVE.sickCap,
+  });
+  return {
+    pass_balance:   card.pass,
+    cash_balance:   card.cash,
+    fund_balance:   fund,
+    annual_balance: annual,
+    sick_balance:   sick,
+  };
+}
+
+function renderSummary(s) {
+  if (!s.balances) { $('#summary-body').textContent = 'Loading…'; return; }
+  const today = deriveTodayBalances(s);
+  const depletions = projectDepletionDates({
+    today: TODAY, balances: today, calendarEntries: s.calendarEntries,
+  });
+
+  const tripsNow = tripsAvailable(today.pass_balance, today.cash_balance);
+  const cashTrips = Math.floor(today.cash_balance / 4);
+  const transitNote = `${tripsNow} trips today (${today.pass_balance} pass + ${cashTrips} cash)`;
+
+  const depletionTiles = depletions.map((d, i) => {
+    const label = ['First depletion', 'Second depletion'][i];
+    if (!d.depletionDate) {
+      return `
+        <div class="tile tile-empty">
+          <div class="tile-label">${label}</div>
+          <div class="tile-value"><span class="empty">No depletion in 2yr</span></div>
+          <div class="tile-meta">Healthy runway</div>
+        </div>`;
+    }
+    const breakdown = d.reload ? `
+      <div class="tile-breakdown">
+        <div class="bd-row"><span class="bd-label">FSA at depletion</span><span class="bd-val">${fmtMoney(d.fundAtDepletion)}</span></div>
+        <div class="bd-row"><span class="bd-label">Hypothetical reload</span><span class="bd-val bd-neg">&minus;${fmtMoney(d.reload.spent)}</span></div>
+        <div class="bd-row bd-total"><span class="bd-label">FSA after reload</span><span class="bd-val">${fmtMoney(d.fundAtDepletion - d.reload.spent)}</span></div>
+      </div>` : `
+      <div class="tile-breakdown">
+        <div class="bd-row"><span class="bd-label">FSA at depletion</span><span class="bd-val">${fmtMoney(d.fundAtDepletion)}</span></div>
+      </div>`;
+    return `
+      <div class="tile">
+        <div class="tile-label">${label}</div>
+        <div class="tile-value">${fmtTileDate(d.depletionDate)}</div>
+        ${breakdown}
+      </div>`;
+  }).join('');
+
+  $('#summary-body').innerHTML = `
+    <div class="proj-section">
+      <div class="proj-section-header">
+        <h3>Transit depletion</h3>
+        <span class="proj-subnote">${transitNote}</span>
+      </div>
+      <div class="tiles">${depletionTiles}</div>
+    </div>
+  `;
+}
+
+function renderBalances(s) {
+  if (!s.balances) return;
+  const today = deriveTodayBalances(s);
+
+  // Forward-project AL/SL one year out so the cards can show today → 1yr.
+  const al = projectLeave({
+    balanceNow: today.annual_balance,
+    accrualPerPaycheck: LEAVE.annualAccrual,
+    usedField: 'annual_used',
+    today: TODAY,
+    calendarEntries: s.calendarEntries,
+  });
+  const sl = projectLeave({
+    balanceNow: today.sick_balance,
+    accrualPerPaycheck: LEAVE.sickAccrual,
+    usedField: 'sick_used',
+    today: TODAY,
+    calendarEntries: s.calendarEntries,
+    cap: LEAVE.sickCap,
+  });
+  const oneYearLabel = addDays(TODAY, 365).toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+
+  const slClassMod =
+    sl.lost > 0 ? ' balance-card--danger' :
+    sl.balanceIn1Year >= LEAVE.sickCap * 0.9 ? ' balance-card--warn' :
+    '';
+  const slSub = sl.lost > 0
+    ? `${fmtWeeks(sl.weeksNow)} → ${fmtWeeks(sl.weeksIn1Year)} · <span class="bc-strong">${fmtHours(sl.lost)} lost to cap</span>`
+    : `${fmtWeeks(sl.weeksNow)} → ${fmtWeeks(sl.weeksIn1Year)} by ${oneYearLabel}`;
+  const alSub = `${fmtWeeks(al.weeksNow)} → ${fmtWeeks(al.weeksIn1Year)} by ${oneYearLabel}`;
+
+  const card = `
+    <div class="balance-card">
+      <div class="bc-label">Breeze Card</div>
+      <div class="bc-values bc-values--dual">
+        <div class="bc-pair"><span class="bc-num">${today.pass_balance}</span><span class="bc-unit">pass trips</span></div>
+        <div class="bc-pair"><span class="bc-num">${fmtMoney(today.cash_balance)}</span><span class="bc-unit">cash</span></div>
+      </div>
+    </div>`;
+
+  const fund = `
+    <div class="balance-card">
+      <div class="bc-label">FSA</div>
+      <div class="bc-values">
+        <div class="bc-pair"><span class="bc-num">${fmtMoney(today.fund_balance)}</span></div>
+      </div>
+    </div>`;
+
+  const annual = `
+    <div class="balance-card">
+      <div class="bc-label">Annual leave</div>
+      <div class="bc-values">
+        <div class="bc-pair">
+          <span class="bc-num">${fmtHours(today.annual_balance)}</span>
+          <span class="bc-arrow">→</span>
+          <span class="bc-num bc-num--proj">${fmtHours(al.balanceIn1Year)}</span>
+        </div>
+      </div>
+      <div class="bc-sub">${alSub}</div>
+    </div>`;
+
+  const sick = `
+    <div class="balance-card${slClassMod}">
+      <div class="bc-label">Sick leave</div>
+      <div class="bc-values">
+        <div class="bc-pair">
+          <span class="bc-num">${fmtHours(today.sick_balance)}</span>
+          <span class="bc-arrow">→</span>
+          <span class="bc-num bc-num--proj">${fmtHours(sl.balanceIn1Year)}</span>
+        </div>
+      </div>
+      <div class="bc-sub">${slSub}</div>
+    </div>`;
+
+  $('#balances-body').innerHTML = `
+    <div class="balance-grid">${card}${fund}${annual}${sick}</div>
+    <div class="balance-actions">
+      <button id="log-reload-btn" type="button">Log a reload</button>
+    </div>`;
+}
+
+function renderAgenda(s) {
+  if (!s.balances) return;
+  const { showHistoric } = s.filters;
+  // Historic horizon = Jan 1 of last calendar year.
+  // Forward horizon = 8 months out (calendar-month math, not 240 days).
+  // Snap start to Monday so the grid's first cell aligns with column 1.
+  const lastYearStart = new Date(TODAY.getFullYear() - 1, 0, 1);
+  let start = showHistoric ? lastYearStart : new Date(TODAY.getFullYear(), TODAY.getMonth(), TODAY.getDate());
+  const dow = start.getDay();
+  const offsetToMon = dow === 0 ? -6 : 1 - dow;
+  start = addDays(start, offsetToMon);
+  const end = new Date(TODAY.getFullYear(), TODAY.getMonth() + 8, TODAY.getDate());
+
+  const items = [];
+  let lastMonthKey = null;
+  for (let d = new Date(start); d <= end; d = addDays(d, 1)) {
+    const wd = d.getDay();
+    if (wd === 0 || wd === 6) continue;
+    const monthKey = `${d.getFullYear()}-${d.getMonth()}`;
+    if (monthKey !== lastMonthKey) {
+      items.push({ type: 'banner', date: new Date(d) });
+      lastMonthKey = monthKey;
+    }
+    items.push({ type: 'cell', date: new Date(d), key: formatDate(d), weekday: wd });
+  }
+
+  const headerHtml = ['MON', 'TUE', 'WED', 'THU', 'FRI']
+    .map(d => `<div class="cal-header">${d}</div>`).join('');
+
+  const bodyHtml = items.map((item) => {
+    if (item.type === 'banner') {
+      const label = item.date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+      return `<div class="cal-banner">${label}</div>`;
+    }
+    const { date, key, weekday } = item;
+    const entry = s.calendarEntries.get(key);
+    const commute = isCommuteDay(date, entry?.commute_override);
+    const holidayName = getHoliday(date);
+    const isPast = date < TODAY;
+    const isToday = date.getTime() === TODAY.getTime();
+    const al = entry?.annual_used ?? 0;
+    const sl = entry?.sick_used ?? 0;
+    const pill = resolvePill({ commute, al, sl, entry, isHoliday: !!holidayName });
+    const note = entry?.notes || holidayName || '';
+    const noteDot = note ? `<span class="cal-note" title="${escapeAttr(note)}" aria-label="Has note: ${escapeAttr(note)}"></span>` : '';
+
+    const classes = [
+      'cal-cell',
+      `cal-month-${date.getMonth() % 2 === 0 ? 'even' : 'odd'}`,
+      isPast ? 'past' : '',
+      isToday ? 'today' : '',
+    ].filter(Boolean).join(' ');
+
+    return `<div class="${classes}" data-date="${key}" style="grid-column-start: ${weekday}">
+      <div class="cal-day">${date.getDate()}</div>
+      <div class="cal-pill-slot">${pill}</div>
+      ${noteDot}
+    </div>`;
+  }).join('');
+
+  $('#agenda').innerHTML = items.length
+    ? `<div class="cal-grid">${headerHtml}${bodyHtml}</div>`
+    : '<div class="empty">No days to display.</div>';
+
+  // Scroll today into view, but only once per page load — re-renders shouldn't
+  // yank the scroll position out from under the user.
+  if (!renderAgenda._didInitialScroll) {
+    const todayCell = $(`#agenda .cal-cell.today`);
+    if (todayCell) todayCell.scrollIntoView({ block: 'center', behavior: 'auto' });
+    renderAgenda._didInitialScroll = true;
+  }
+}
+
+function escapeAttr(s) {
+  return String(s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+}
+
+function resolvePill({ commute, al, sl, entry, isHoliday }) {
+  if (al > 0)   return `<span class="pill pill-vacation">Vacation${al !== 7.5 ? ` &middot; ${al}h` : ''}</span>`;
+  if (sl > 0)   return `<span class="pill pill-sick">Sick${sl !== 7.5 ? ` &middot; ${sl}h` : ''}</span>`;
+  if (entry?.kind === 'holiday' || isHoliday) return `<span class="pill pill-holiday">Holiday</span>`;
+  if (commute) return `<span class="pill pill-commute">2 trips</span>`;
+  if (entry?.kind === 'conference') return `<span class="pill pill-conference">Conference</span>`;
+  if (entry?.kind === 'wfh')        return `<span class="pill pill-wfh">WFH</span>`;
+  // Heuristic fallback for legacy/fixture entries lacking a `kind` field.
+  if (entry?.commute_override === 'no' && (entry.notes || '').toLowerCase().includes('conference')) {
+    return `<span class="pill pill-conference">Conference</span>`;
+  }
+  return `<span class="pill pill-wfh">WFH</span>`;
+}
+
+subscribe((s) => {
+  if (s.loading) return;
+  renderSummary(s);
+  renderBalances(s);
+  renderAgenda(s);
+});
+
+init();

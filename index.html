@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Leave Planner</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>✈️</text></svg>" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <main id="app">
+    <section id="main">
+      <header>
+        <h1>ARC Commute &amp; Leave Planner</h1>
+        <button id="theme-toggle" type="button" aria-label="Toggle light/dark theme" title="Toggle theme">
+          <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+          </svg>
+          <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <circle cx="12" cy="12" r="4"/>
+            <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/>
+          </svg>
+        </button>
+      </header>
+
+      <!-- Zone 1: summary card -->
+      <section id="summary" class="card">
+        <div id="summary-body">Loading…</div>
+      </section>
+
+      <!-- Zone 2: balances + actions (small, inline) -->
+      <section id="balances" class="card">
+        <header class="balances-header">
+          <h2>Current balances</h2>
+          <button id="adjust-balances-btn" type="button" class="bc-adjust">Adjust&hellip;</button>
+        </header>
+        <div id="balances-body"></div>
+      </section>
+
+      <!-- Zone 3: calendar agenda -->
+      <section id="calendar" class="card">
+        <header class="calendar-header">
+          <h2>Calendar</h2>
+          <label class="switch">
+            <input type="checkbox" id="filter-historic" />
+            <span class="switch-track"><span class="switch-thumb"></span></span>
+            <span class="switch-label">Show historic data</span>
+          </label>
+        </header>
+        <div id="agenda"></div>
+      </section>
+    </section>
+  </main>
+
+  <!-- Dialogs -->
+  <dialog id="reload-dialog">
+    <form method="dialog" id="reload-form">
+      <h3>Log a reload</h3>
+      <label>Reload date <input type="date" name="reload_date" required /></label>
+      <label>Booklets added <input type="number" name="booklets_added" min="0" max="7" required /></label>
+      <label>Cash added ($) <input type="number" name="cash_added" min="0" step="0.01" required /></label>
+      <label>FSA spent ($) <input type="number" name="fsa_spent" min="0" step="0.01" required /></label>
+      <label>Notes <textarea name="notes"></textarea></label>
+      <menu>
+        <button value="cancel" formnovalidate>Cancel</button>
+        <button value="save" id="reload-save">Save</button>
+      </menu>
+    </form>
+  </dialog>
+
+  <dialog id="adjust-dialog">
+    <form method="dialog" id="adjust-form">
+      <h3 id="adjust-title">Adjust balance</h3>
+      <p class="adjust-help" id="adjust-help"></p>
+      <div id="adjust-fields"></div>
+      <menu>
+        <button value="cancel" formnovalidate>Cancel</button>
+        <button value="save" class="primary-btn">Save</button>
+      </menu>
+    </form>
+  </dialog>
+
+  <dialog id="day-dialog">
+    <form method="dialog" id="day-form">
+      <h3 id="day-dialog-title">Edit day</h3>
+      <input type="hidden" name="date" />
+
+      <fieldset class="status-group">
+        <legend>Status</legend>
+        <label class="status-option"><input type="radio" name="status" value="commute" /><span>Default (commute)</span></label>
+        <label class="status-option"><input type="radio" name="status" value="wfh" /><span>WFH</span></label>
+        <label class="status-option"><input type="radio" name="status" value="conference" /><span>Conference</span></label>
+        <label class="status-option"><input type="radio" name="status" value="holiday" /><span>Holiday</span></label>
+        <label class="status-option"><input type="radio" name="status" value="annual" /><span>Annual leave</span></label>
+        <label class="status-option"><input type="radio" name="status" value="sick" /><span>Sick leave</span></label>
+      </fieldset>
+
+      <fieldset class="day-type-group" id="day-type-group">
+        <legend>Day type</legend>
+        <div class="segmented">
+          <label class="seg-option"><input type="radio" name="dayType" value="half" /><span>Half day &middot; 3.75h</span></label>
+          <label class="seg-option"><input type="radio" name="dayType" value="full" checked /><span>Full day(s) &middot; 7.5h ea.</span></label>
+        </div>
+      </fieldset>
+
+      <label>Notes <input type="text" name="notes" /></label>
+
+      <label id="day-end-row">End date
+        <input type="date" name="end" />
+      </label>
+
+      <menu>
+        <button value="delete" class="danger-btn" formnovalidate hidden>Clear entry</button>
+        <span class="menu-spacer"></span>
+        <button value="cancel" formnovalidate>Cancel</button>
+        <button value="save" class="primary-btn">Save</button>
+      </menu>
+    </form>
+  </dialog>
+
+  <script type="module" src="app.js"></script>
+</body>
+</html>
