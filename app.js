@@ -207,11 +207,19 @@ $('#day-form').addEventListener('change', (e) => {
   }
 });
 
-$('#agenda').addEventListener('dblclick', (e) => {
+// Touch devices get single-tap (mobile browsers swallow dblclick into the
+// double-tap-to-zoom gesture). Desktop keeps dblclick to avoid accidental
+// opens when scanning the calendar.
+function handleCalCellActivate(e) {
+  const isTouch = matchMedia('(hover: none)').matches;
+  if (e.type === 'click' && !isTouch) return;
+  if (e.type === 'dblclick' && isTouch) return;
   const cell = e.target.closest('.cal-cell');
   if (!cell?.dataset.date) return;
   openDayDialog(cell.dataset.date);
-});
+}
+$('#agenda').addEventListener('click', handleCalCellActivate);
+$('#agenda').addEventListener('dblclick', handleCalCellActivate);
 
 $('#day-form').addEventListener('submit', async (e) => {
   const action = e.submitter?.value;

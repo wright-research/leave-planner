@@ -40,6 +40,13 @@
      reads at a glance — distinct labels, unified visual treatment. */
   --pill-timeoff-bg:    #ffedd5;
   --pill-timeoff-fg:    #c2410c;
+  /* "Solid" tokens used for the label-less mobile pill bars. Tuned to read
+     punchy and on-brand at small sizes (the deeper fg tokens look somber
+     as a solid fill). Dark mode uses the existing fg pastels — see below. */
+  --pill-commute-solid:    #3b82f6;
+  --pill-wfh-solid:        #22c55e;
+  --pill-conference-solid: #8b5cf6;
+  --pill-timeoff-solid:    #f97316;
 }
 
 [data-theme="dark"] {
@@ -79,6 +86,11 @@
   --pill-conference-fg: #c4b5fd;
   --pill-timeoff-bg:    rgba(251, 146, 60, 0.18);
   --pill-timeoff-fg:    #fdba74;
+  /* In dark mode the fg pastels already pop as a solid fill — reuse them. */
+  --pill-commute-solid:    var(--pill-commute-fg);
+  --pill-wfh-solid:        var(--pill-wfh-fg);
+  --pill-conference-solid: var(--pill-conference-fg);
+  --pill-timeoff-solid:    var(--pill-timeoff-fg);
 }
 
 /* --- Base ------------------------------------------------------------- */
@@ -315,6 +327,9 @@ h2 {
   gap: 0.3rem;
   cursor: pointer;
   user-select: none;
+  /* Suppress mobile double-tap-to-zoom so single-tap opens the day editor
+     immediately (no 300ms delay, no zoom gesture intercept). */
+  touch-action: manipulation;
   transition: background 0.1s ease;
 }
 .cal-cell:hover { background: var(--surface-hover); }
@@ -347,6 +362,27 @@ h2 {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/* On narrow phones the cells aren't wide enough to fit "Conference"
+   without ellipsis. Drop the label and render the pill as a compact
+   colored bar — color alone conveys the status, and tapping the cell
+   opens the full editor. The pale "bg" tokens used on desktop wash out
+   at this size, so swap to the bold "fg" tokens for stronger contrast. */
+@media (max-width: 600px) {
+  .cal-cell .cal-pill-slot .pill {
+    font-size: 0;
+    padding: 0;
+    width: 1.6rem;
+    height: 0.35rem;
+    border-radius: 4px;
+  }
+  .cal-cell .pill-commute    { background: var(--pill-commute-solid); }
+  .cal-cell .pill-wfh        { background: var(--pill-wfh-solid); }
+  .cal-cell .pill-conference { background: var(--pill-conference-solid); }
+  .cal-cell .pill-vacation,
+  .cal-cell .pill-holiday,
+  .cal-cell .pill-sick       { background: var(--pill-timeoff-solid); }
 }
 
 .cal-cell .cal-note {
