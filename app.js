@@ -118,22 +118,33 @@ $('#adjust-form').addEventListener('submit', async (e) => {
     if (Math.abs(num - Number(today[k])) > 1e-6) patch[k] = num;
   }
   if (Object.keys(patch).length === 0) return;
-  await setAnchor(patch);
-  showToast('Saved!');
+  try {
+    await setAnchor(patch);
+    showToast('Saved!');
+  } catch (err) {
+    console.error(err);
+    showToast(`Save failed: ${err.message}`);
+  }
 });
 
 $('#reload-form').addEventListener('submit', async (e) => {
   const action = e.submitter?.value;
   if (action !== 'save') return;
   const fd = new FormData(e.target);
-  await logReload({
-    reload_date: fd.get('reload_date'),
-    booklets_added: Number(fd.get('booklets_added')),
-    cash_added: Number(fd.get('cash_added')),
-    fsa_spent: Number(fd.get('fsa_spent')),
-    notes: fd.get('notes') || null,
-  });
-  e.target.reset();
+  try {
+    await logReload({
+      reload_date: fd.get('reload_date'),
+      booklets_added: Number(fd.get('booklets_added')),
+      cash_added: Number(fd.get('cash_added')),
+      fsa_spent: Number(fd.get('fsa_spent')),
+      notes: fd.get('notes') || null,
+    });
+    showToast('Saved!');
+    e.target.reset();
+  } catch (err) {
+    console.error(err);
+    showToast(`Save failed: ${err.message}`);
+  }
 });
 
 // --- Day editor (double-click an agenda row) ---
@@ -230,36 +241,41 @@ $('#day-form').addEventListener('submit', async (e) => {
   const end = endStr ? parseDate(endStr) : start;
   if (!start || end < start) return;
 
-  if (action === 'delete') {
-    for (let d = start; d <= end; d = addDays(d, 1)) {
-      await deleteCalendarEntry(formatDate(d));
+  try {
+    if (action === 'delete') {
+      for (let d = start; d <= end; d = addDays(d, 1)) {
+        await deleteCalendarEntry(formatDate(d));
+      }
+      return;
     }
-    return;
-  }
-  if (action !== 'save') return;
+    if (action !== 'save') return;
 
-  const status = fd.get('status');
-  const dayType = fd.get('dayType');
-  const notes = fd.get('notes') || null;
-  // Half day = 3.75h on the focused day; Full day(s) = 7.5h per day across range.
-  const hoursPerDay = dayType === 'half' ? 3.75 : 7.5;
+    const status = fd.get('status');
+    const dayType = fd.get('dayType');
+    const notes = fd.get('notes') || null;
+    // Half day = 3.75h on the focused day; Full day(s) = 7.5h per day across range.
+    const hoursPerDay = dayType === 'half' ? 3.75 : 7.5;
 
-  // "Default (commute)" stores no override (null) — the default-commute rule
-  // resolves it. The other four statuses all force commute off.
-  const patch = {
-    annual_used:      status === 'annual' ? hoursPerDay : 0,
-    sick_used:        status === 'sick'   ? hoursPerDay : 0,
-    commute_override: status === 'commute' ? null : 'no',
-    kind:
-      status === 'wfh'        ? 'wfh' :
-      status === 'conference' ? 'conference' :
-      status === 'holiday'    ? 'holiday' :
-      null,
-    notes,
-  };
+    // "Default (commute)" stores no override (null) — the default-commute rule
+    // resolves it. The other four statuses all force commute off.
+    const patch = {
+      annual_used:      status === 'annual' ? hoursPerDay : 0,
+      sick_used:        status === 'sick'   ? hoursPerDay : 0,
+      commute_override: status === 'commute' ? null : 'no',
+      kind:
+        status === 'wfh'        ? 'wfh' :
+        status === 'conference' ? 'conference' :
+        status === 'holiday'    ? 'holiday' :
+        null,
+      notes,
+    };
 
-  for (let d = start; d <= end; d = addDays(d, 1)) {
-    await upsertCalendarEntry(formatDate(d), patch);
+    for (let d = start; d <= end; d = addDays(d, 1)) {
+      await upsertCalendarEntry(formatDate(d), patch);
+    }
+  } catch (err) {
+    console.error(err);
+    showToast(`Save failed: ${err.message}`);
   }
 });
 
