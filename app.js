@@ -10,9 +10,10 @@ import {
   isCommuteDay, tripsAvailable,
   projectDepletionDates, projectLeave,
   projectCardBalances, projectFundBalance, projectLeaveBalance,
+  tripsUsedTodayByTime,
 } from './lib/projections.js';
 import { getHoliday } from './lib/holidays.js';
-import { LEAVE } from './constants.js';
+import { LEAVE, COMMUTE_TRIP_TIMES_ET } from './constants.js';
 
 const $ = (sel) => document.querySelector(sel);
 const TODAY = startOfDay();
@@ -301,6 +302,7 @@ function deriveTodayBalances(s) {
     targetDate:  TODAY,
     calendarEntries: s.calendarEntries,
     reloadLog:   s.reloadLog,
+    todayTrips:  tripsUsedTodayByTime(),
   });
   const fund = projectFundBalance({
     anchor:      Number(b.fund_balance),
@@ -585,4 +587,33 @@ subscribe((s) => {
   renderAgenda(s);
 });
 
+// Schedule re-renders at each commute trip threshold (8:00am and 4:00pm ET) so the
+// displayed Breeze balance updates automatically when the app is left open.
+function msUntilETTime(hour, minute) {
+  const now = new Date();
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/New_York',
+    hour: 'numeric', minute: 'numeric', second: 'numeric', hour12: false,
+  }).formatToParts(now);
+  const etHour = +parts.find(p => p.type === 'hour').value % 24;
+  const etMinute = +parts.find(p => p.type === 'minute').value;
+  const etSecond = +parts.find(p => p.type === 'second').value;
+  const secondsUntil = (hour * 3600 + minute * 60) - (etHour * 3600 + etMinute * 60 + etSecond);
+  return secondsUntil > 0 ? secondsUntil * 1000 : null;
+}
+
+function scheduleThresholdRefresh() {
+  const { morning, afternoon } = COMMUTE_TRIP_TIMES_ET;
+  for (const t of [morning, afternoon]) {
+    const ms = msUntilETTime(t.hour, t.minute);
+    if (ms !== null) {
+      setTimeout(() => {
+        renderSummary(state);
+        renderBalances(state);
+      }, ms);
+    }
+  }
+}
+
+scheduleThresholdRefresh();
 init();

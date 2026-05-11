@@ -38,3 +38,11 @@ export const LEAVE = {
 // FSA contribution rule: deposits land on the 1st and 2nd paycheck-Fridays of each
 // calendar month. If a month has 3 paycheck-Fridays (happens ~2x/year), skip the 3rd.
 export const FSA_PAYCHECKS_PER_MONTH_CAP = 2;
+
+// Time-of-day thresholds (US Eastern, handles DST) used to approximate which Breeze
+// trips have actually been tapped on a commute day. Inbound assumed complete at 8:00am;
+// outbound at 4:00pm.
+export const COMMUTE_TRIP_TIMES_ET = {
+  morning:   { hour: 8,  minute: 0 },
+  afternoon: { hour: 16, minute: 0 },
+};
