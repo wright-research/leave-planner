@@ -1115,6 +1115,17 @@ dialog menu {
   border-color: var(--accent);
   box-shadow: 0 0 0 3px var(--accent-ring);
 }
+.load-error {
+  padding: 1rem 1.25rem;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--danger) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--danger) 35%, transparent);
+  color: var(--text);
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+.load-error a { color: var(--accent); }
+
 .toast {
   position: fixed;
   top: 1rem;

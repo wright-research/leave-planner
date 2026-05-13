@@ -72,24 +72,21 @@ async function init() {
     return;
   }
 
-  // Listen for auth changes — handles magic link callback automatically.
   supabase.auth.onAuthStateChange(async (event, session) => {
-    if (session) {
-      showApp();
-      await loadAll();
-    } else {
+    // Clean up any Supabase auth tokens/errors from the URL hash.
+    if (window.location.hash.includes('access_token') || window.location.hash.includes('error')) {
+      window.history.replaceState(null, '', window.location.pathname);
+    }
+    // INITIAL_SESSION fires once after full client initialization — the only
+    // safe point to make DB queries. SIGNED_IN fires earlier (during token
+    // refresh) before the session is ready for DB use, so we skip it here.
+    if (event === 'INITIAL_SESSION') {
+      if (session) { showApp(); await loadAll(); }
+      else { showLogin(); }
+    } else if (event === 'SIGNED_OUT') {
       showLogin();
     }
   });
-
-  // Check for an existing session on load.
-  const { data: { session } } = await supabase.auth.getSession();
-  if (session) {
-    showApp();
-    await loadAll();
-  } else {
-    showLogin();
-  }
 }
 
 $('#login-form').addEventListener('submit', async (e) => {
@@ -781,6 +778,11 @@ function renderUpcoming(s) {
 
 subscribe((s) => {
   if (s.loading) return;
+  if (s.loadError) {
+    $('#summary-body').innerHTML =
+      `<div class="load-error">Failed to load data: ${escapeAttr(s.loadError)}<br>Check your Supabase project — it may be paused. <a href="https://supabase.com/dashboard" target="_blank" rel="noopener">Open dashboard</a></div>`;
+    return;
+  }
   renderSummary(s);
   renderBalances(s);
   renderUpcoming(s);
