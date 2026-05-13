@@ -43,9 +43,9 @@ export const LEAVE = {
 export const FSA_PAYCHECKS_PER_MONTH_CAP = 2;
 
 // Time-of-day thresholds (US Eastern, handles DST) used to approximate which Breeze
-// trips have actually been tapped on a commute day. Inbound assumed complete at 8:00am;
-// outbound at 4:00pm.
+// trips have actually been tapped on a commute day. Inbound assumed complete at 7:30am;
+// outbound at 3:30pm.
 export const COMMUTE_TRIP_TIMES_ET = {
-  morning:   { hour: 8,  minute: 0 },
-  afternoon: { hour: 16, minute: 0 },
+  morning:   { hour: 7,  minute: 30 },
+  afternoon: { hour: 15, minute: 30 },
 };
