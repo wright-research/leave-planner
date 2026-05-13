@@ -10,7 +10,7 @@ import {
   isCommuteDay, tripsAvailable,
   projectDepletionDates, projectLeave,
   projectCardBalances, projectFundBalance, projectLeaveBalance,
-  tripsUsedTodayByTime,
+  tripsUsedTodayByTime, isPayPeriodEndSunday,
 } from './lib/projections.js';
 import { getHoliday } from './lib/holidays.js';
 import { LEAVE, COMMUTE_TRIP_TIMES_ET } from './constants.js';
@@ -77,7 +77,8 @@ $('#balances').addEventListener('click', (e) => {
     dlg.showModal();
     return;
   }
-  if (e.target.closest('#adjust-balances-btn')) openAdjustDialog();
+  if (e.target.closest('#adjust-balances-btn')) { openAdjustDialog(); return; }
+  if (e.target.closest('#leave-history-btn'))   { openLeaveHistoryDialog(); return; }
 });
 
 // --- Adjust balance dialog ---
@@ -283,7 +284,7 @@ $('#day-form').addEventListener('submit', async (e) => {
 // --- Formatting ---
 
 const fmtMoney = (n) => `$${Number(n).toFixed(2)}`;
-const fmtHours = (n) => `${Number(n).toFixed(1)}h`;
+const fmtHours = (n) => `${Number(n).toFixed(2)}h`;
 const fmtWeeks = (n) => `${Number(n).toFixed(1)} wk`;
 const fmtTileDate = (d) => d ? d.toLocaleDateString('en-US', { month: 'long', day: 'numeric' }) : '—';
 
@@ -439,26 +440,38 @@ function renderBalances(s) {
     : `${fmtWeeks(sl.weeksNow)} → ${fmtWeeks(sl.weeksIn1Year)} by ${oneYearLabel}`;
   const alSub = `${fmtWeeks(al.weeksNow)} → ${fmtWeeks(al.weeksIn1Year)} by ${oneYearLabel}`;
 
-  const card = `
-    <div class="balance-card">
-      <div class="bc-label">Breeze Card</div>
-      <div class="bc-values bc-values--dual">
-        <div class="bc-pair"><span class="bc-num">${today.pass_balance}</span><span class="bc-unit">pass trips</span></div>
-        <div class="bc-pair"><span class="bc-num">${fmtMoney(today.cash_balance)}</span><span class="bc-unit">cash</span></div>
-      </div>
-    </div>`;
-
-  const fund = `
-    <div class="balance-card">
-      <div class="bc-label">FSA</div>
-      <div class="bc-values">
-        <div class="bc-pair"><span class="bc-num">${fmtMoney(today.fund_balance)}</span></div>
-      </div>
+  const transit = `
+    <div class="balance-card transit-card">
+      <div class="bc-transit-body">
+        <div class="bc-transit-metrics">
+          <div class="bc-transit-section">
+            <div class="bc-label"><span class="bc-emoji">🚌</span> Breeze Card</div>
+            <div class="bc-values">
+              <div class="bc-pair">
+                <span class="bc-num">${today.pass_balance}</span>
+                <span class="bc-unit">pass trips</span>
+                <span class="bc-cash-aside">+ ${fmtMoney(today.cash_balance)} cash</span>
+              </div>
+            </div>
+          </div>
+          <div class="bc-transit-section bc-transit-section--fsa">
+            <div class="bc-label"><span class="bc-emoji">💳</span> FSA</div>
+            <div class="bc-values">
+              <div class="bc-pair">
+                <span class="bc-num">${fmtMoney(today.fund_balance)}</span>
+                <span class="bc-unit bc-fsa-unit">FSA</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="bc-transit-action">
+          <button id="log-reload-btn" type="button">Log a reload</button>
+        </div>
     </div>`;
 
   const annual = `
-    <div class="balance-card">
-      <div class="bc-label"><span class="bc-label-strong">Current</span> <span class="bc-label-arrow">→</span> Projected AL</div>
+    <div class="balance-card leave-card">
+      <div class="bc-label"><span class="bc-label-strong">Current AL</span> <span class="bc-label-arrow">→</span> Projected</div>
       <div class="bc-values">
         <div class="bc-pair">
           <span class="bc-num">${fmtHours(today.annual_balance)}</span>
@@ -470,8 +483,8 @@ function renderBalances(s) {
     </div>`;
 
   const sick = `
-    <div class="balance-card">
-      <div class="bc-label"><span class="bc-label-strong">Current</span> <span class="bc-label-arrow">→</span> Projected SL</div>
+    <div class="balance-card leave-card">
+      <div class="bc-label"><span class="bc-label-strong">Current SL</span> <span class="bc-label-arrow">→</span> Projected</div>
       <div class="bc-values">
         <div class="bc-pair">
           <span class="bc-num">${fmtHours(today.sick_balance)}</span>
@@ -483,9 +496,9 @@ function renderBalances(s) {
     </div>`;
 
   $('#balances-body').innerHTML = `
-    <div class="balance-grid">${card}${fund}${annual}${sick}</div>
-    <div class="balance-actions">
-      <button id="log-reload-btn" type="button">Log a reload</button>
+    <div class="balance-grid">${transit}<div class="bc-leave-divider"></div>
+      <div class="bc-leave-row">${annual}${sick}</div>
+      <div class="bc-leave-more"><button id="leave-history-btn" type="button">More info</button></div>
     </div>`;
 }
 
@@ -556,9 +569,11 @@ function renderAgenda(s) {
   // Scroll today into view, but only once per page load — re-renders shouldn't
   // yank the scroll position out from under the user.
   if (!renderAgenda._didInitialScroll) {
-    const todayCell = $(`#agenda .cal-cell.today`);
-    if (todayCell) todayCell.scrollIntoView({ block: 'center', behavior: 'auto' });
     renderAgenda._didInitialScroll = true;
+    if (window.innerWidth >= 900) {
+      const todayCell = $(`#agenda .cal-cell.today`);
+      if (todayCell) todayCell.scrollIntoView({ block: 'center', behavior: 'auto' });
+    }
   }
 }
 
@@ -580,10 +595,143 @@ function resolvePill({ commute, al, sl, entry, isHoliday }) {
   return `<span class="pill pill-wfh">WFH</span>`;
 }
 
+function computeLeaveHistory(calendarEntries) {
+  const yr = TODAY.getFullYear();
+  const ytdStart  = new Date(yr, 0, 1);
+  const lastStart = new Date(yr - 1, 0, 1);
+  const lastEnd   = new Date(yr - 1, 11, 31);
+
+  const s = {
+    ytd:  { alUsed: 0, slUsed: 0, alAccrued: 0, slAccrued: 0 },
+    last: { alUsed: 0, slUsed: 0, alAccrued: 0, slAccrued: 0 },
+  };
+
+  for (const [key, entry] of calendarEntries) {
+    const d = parseDate(key);
+    const al = entry.annual_used ?? 0;
+    const sl = entry.sick_used ?? 0;
+    if (d >= ytdStart && d <= TODAY) { s.ytd.alUsed += al; s.ytd.slUsed += sl; }
+    if (d >= lastStart && d <= lastEnd) { s.last.alUsed += al; s.last.slUsed += sl; }
+  }
+
+  let d = new Date(ytdStart);
+  while (d <= TODAY) {
+    if (isPayPeriodEndSunday(d)) { s.ytd.alAccrued += LEAVE.annualAccrual; s.ytd.slAccrued += LEAVE.sickAccrual; }
+    d = addDays(d, 1);
+  }
+  d = new Date(lastStart);
+  while (d <= lastEnd) {
+    if (isPayPeriodEndSunday(d)) { s.last.alAccrued += LEAVE.annualAccrual; s.last.slAccrued += LEAVE.sickAccrual; }
+    d = addDays(d, 1);
+  }
+  return s;
+}
+
+function openLeaveHistoryDialog() {
+  const h = computeLeaveHistory(state.calendarEntries);
+  const yr = TODAY.getFullYear();
+  const fmtH = (n) => `${Number(n).toFixed(2)}h`;
+  const fmtUpDate = (d) => d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+
+  const section = (title, stats) => `
+    <div class="lh-section">
+      <div class="lh-title">${title}</div>
+      <div class="lh-grid">
+        <div></div>
+        <div class="lh-col-head">Annual leave</div>
+        <div class="lh-col-head">Sick leave</div>
+        <div class="lh-row-head">Used</div>
+        <div>${fmtH(stats.alUsed)}</div>
+        <div>${fmtH(stats.slUsed)}</div>
+        <div class="lh-row-head">Accrued</div>
+        <div>${fmtH(stats.alAccrued)}</div>
+        <div>${fmtH(stats.slAccrued)}</div>
+      </div>
+    </div>`;
+
+  const ytdLabel = `YTD · Jan 1 – ${fmtUpDate(TODAY)}, ${yr}`;
+  const lastLabel = `${yr - 1} · full year`;
+
+  $('#leave-history-body').innerHTML =
+    section(ytdLabel, h.ytd) + section(lastLabel, h.last);
+
+  $('#leave-history-dialog').showModal();
+}
+
+function renderUpcoming(s) {
+  if (!s.balances) return;
+  const HORIZON = 90;
+  const fmtUpDate = (d) => d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+
+  // Collect note runs (consecutive days with the same note merge into a date span)
+  const noteRuns = [];
+  for (let i = 1; i <= HORIZON; i++) {
+    const date = addDays(TODAY, i);
+    const note = s.calendarEntries.get(formatDate(date))?.notes?.trim();
+    if (!note) continue;
+    const prev = noteRuns[noteRuns.length - 1];
+    const consecutive = prev && prev.label === note &&
+      addDays(prev.endDate, 1).getTime() === date.getTime();
+    if (consecutive) { prev.endDate = date; }
+    else { noteRuns.push({ date, endDate: date, label: note, kind: 'note' }); }
+  }
+
+  // Holidays — skip days already covered by a note run
+  const noteCovered = new Set(noteRuns.flatMap(r => {
+    const days = [];
+    let d = new Date(r.date);
+    while (d <= r.endDate) { days.push(formatDate(d)); d = addDays(d, 1); }
+    return days;
+  }));
+  const holidays = [];
+  for (let i = 1; i <= HORIZON; i++) {
+    const date = addDays(TODAY, i);
+    if (noteCovered.has(formatDate(date))) continue;
+    const name = getHoliday(date);
+    if (name) holidays.push({ date, endDate: date, label: name, kind: 'holiday' });
+  }
+
+  // D1 depletion
+  const todayBal = deriveTodayBalances(s);
+  const depletions = projectDepletionDates({
+    today: TODAY, balances: todayBal, calendarEntries: s.calendarEntries,
+  });
+  const depletion = depletions[0]?.depletionDate
+    ? [{ date: depletions[0].depletionDate, endDate: depletions[0].depletionDate,
+         label: 'Transit depletion', kind: 'depletion' }]
+    : [];
+
+  const items = [...noteRuns, ...holidays, ...depletion]
+    .sort((a, b) => a.date - b.date)
+    .slice(0, 4);
+
+  const fmtRange = (item) => {
+    if (item.endDate.getTime() === item.date.getTime()) return fmtUpDate(item.date);
+    if (item.date.getMonth() === item.endDate.getMonth())
+      return `${fmtUpDate(item.date)}–${item.endDate.getDate()}`;
+    return `${fmtUpDate(item.date)} – ${fmtUpDate(item.endDate)}`;
+  };
+  const pill = (kind) => {
+    if (kind === 'holiday')   return `<span class="pill pill-holiday">Holiday</span>`;
+    if (kind === 'depletion') return `<span class="pill pill-depletion">Depletion</span>`;
+    return '';
+  };
+
+  $('#upcoming-body').innerHTML = items.length === 0
+    ? `<div class="upcoming-empty">Nothing notable in the next 90 days.</div>`
+    : items.map(item => `
+        <div class="upcoming-item">
+          <span class="upcoming-date">${fmtRange(item)}</span>
+          <span class="upcoming-label">${item.label}</span>
+          ${pill(item.kind)}
+        </div>`).join('');
+}
+
 subscribe((s) => {
   if (s.loading) return;
   renderSummary(s);
   renderBalances(s);
+  renderUpcoming(s);
   renderAgenda(s);
 });
 

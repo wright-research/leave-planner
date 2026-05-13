@@ -27,6 +27,9 @@ export const FSA = {
 // Paycheck cadence: biweekly Fridays, anchored to this date.
 export const PAYCHECK_ANCHOR = '2026-01-02';
 
+// Leave accrual cadence: biweekly Sundays (pay period end), anchored to this date.
+export const LEAVE_ACCRUAL_ANCHOR = '2026-01-11';
+
 export const LEAVE = {
   annualAccrual: 4.5,   // hours per paycheck
   sickAccrual:   3.0,   // hours per paycheck

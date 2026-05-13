@@ -61,7 +61,7 @@ Optional ergonomic affordance: a **"Log a reload"** form that takes *(booklets a
 
 ### Leave
 
-- **Accruals are biweekly, always:** 4.5 hrs AL and 3.0 hrs SL per paycheck Friday, every other Friday. Unlike FSA, leave accrual **does not skip** on 3-paycheck-Friday months — it fires on all 26 paychecks per year.
+- **Accruals are biweekly, always:** 4.5 hrs AL and 3.0 hrs SL per pay period end, every other Sunday. Pay periods always end on biweekly Sundays regardless of holidays; anchored to 2026-01-11. Unlike FSA, leave accrual is independent of the paycheck-Friday schedule.
 - **Caps (agency hard limits):**
   - **AL: 360 hours.** Projection is shown unclipped so the user can see how far over they'd go; UI flags the projected number gold at ≥90% of cap and red if it would exceed.
   - **SL: 525 hours.** Projections clip at 525 — that reflects real policy. If a projected balance would exceed 525 in the next 12 months, the excess is lost. UI flags gold at ≥90% and red when any hours would be lost.
@@ -102,6 +102,7 @@ Everything else lives behind the scenes. Changing any of these is a code edit + 
 | `LEAVE.annualCap` | 360 |
 | `LEAVE.sickCap` | 525 |
 | `PAYCHECK_ANCHOR` | 2026-01-02 |
+| `LEAVE_ACCRUAL_ANCHOR` | 2026-01-11 |
 
 Terminology note: the spreadsheet spells it "Accrural." The app uses "Accrual."
 

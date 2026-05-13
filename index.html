@@ -40,7 +40,15 @@
         <div id="balances-body"></div>
       </section>
 
-      <!-- Zone 3: calendar agenda -->
+      <!-- Zone 3: upcoming events -->
+      <section id="upcoming" class="card">
+        <header class="upcoming-header">
+          <h2>Upcoming</h2>
+        </header>
+        <div id="upcoming-body"></div>
+      </section>
+
+      <!-- Zone 4: calendar agenda -->
       <section id="calendar" class="card">
         <header class="calendar-header">
           <h2>Calendar</h2>
@@ -67,6 +75,16 @@
       <menu>
         <button value="cancel" formnovalidate>Cancel</button>
         <button value="save" id="reload-save">Save</button>
+      </menu>
+    </form>
+  </dialog>
+
+  <dialog id="leave-history-dialog">
+    <form method="dialog">
+      <h3>Leave history</h3>
+      <div id="leave-history-body"></div>
+      <menu>
+        <button value="cancel" formnovalidate>Close</button>
       </menu>
     </form>
   </dialog>

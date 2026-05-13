@@ -120,21 +120,23 @@ main#app {
 #main {
   display: grid;
   grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr);
-  grid-template-rows: auto auto auto;
+  grid-template-rows: auto auto auto auto;
   grid-template-areas:
     "header   header"
     "balances calendar"
-    "summary  calendar";
-  gap: 1rem;
+    "summary  calendar"
+    "upcoming upcoming";
+  gap: 0.75rem;
   align-items: start;
 }
-#main > header   { grid-area: header; }
-#main > #summary { grid-area: summary; }
+#main > header    { grid-area: header; }
+#main > #summary  { grid-area: summary; }
 #main > #balances { grid-area: balances; }
 /* min-height: 0 lets the calendar shrink below its natural content height,
    so the row heights are driven by summary + balances. The agenda inside
    then flexes to fill whatever space is left and scrolls past it. */
 #main > #calendar { grid-area: calendar; align-self: stretch; min-height: 0; }
+#main > #upcoming { grid-area: upcoming; }
 
 @media (max-width: 900px) {
   #main {
@@ -143,6 +145,7 @@ main#app {
       "header"
       "balances"
       "summary"
+      "upcoming"
       "calendar";
   }
 }
@@ -635,10 +638,26 @@ dialog menu {
 .balance-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0.85rem;
+  column-gap: 0.85rem;
+  row-gap: 0.75rem;
 }
 @media (max-width: 480px) {
   .balance-grid { grid-template-columns: minmax(0, 1fr); }
+}
+
+.bc-leave-divider {
+  grid-column: 1 / -1;
+  border-top: 1px solid var(--border);
+  margin: 0.25rem 0;
+}
+
+.balance-card.leave-card {
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  padding-left: 0.75rem;
+  padding-top: 0.4rem;
+  padding-bottom: 0.4rem;
 }
 
 .balance-card {
@@ -657,6 +676,7 @@ dialog menu {
   color: var(--muted);
   font-weight: 700;
 }
+.balance-card .bc-label .bc-emoji { font-size: 190%; }
 .balance-card .bc-values {
   display: flex;
   align-items: baseline;
@@ -741,6 +761,7 @@ dialog menu {
   font-size: 0.78rem;
   color: var(--muted);
   font-weight: 500;
+  white-space: nowrap;
 }
 .balance-card .bc-sub {
   font-size: 0.74rem;
@@ -774,20 +795,224 @@ dialog menu {
   border-color: var(--accent);
 }
 
-.balance-actions { display: flex; }
-.balance-actions #log-reload-btn {
-  flex: 1;
-  background: transparent;
-  border: 1px solid var(--accent);
-  color: var(--accent);
-  box-shadow: none;
-  padding: 0.55rem 1rem;
-  font-weight: 600;
+.transit-card { grid-column: 1 / -1; }
+.balance-card.transit-card { padding-left: 0.75rem; }
+
+.bc-transit-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
 }
-.balance-actions #log-reload-btn:hover {
-  background: var(--accent-soft);
-  border-color: var(--accent-hover);
+
+.bc-transit-metrics {
+  display: flex;
+  align-items: stretch;
+}
+
+.bc-transit-section {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  padding-right: 1.5rem;
+}
+
+.bc-transit-section--fsa {
+  padding-right: 0;
+  padding-left: 1.5rem;
+  border-left: 1px solid var(--border);
+}
+
+.bc-fsa-unit { display: none; }
+
+.bc-transit-action {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.bc-transit-action #log-reload-btn {
+  background: none;
+  border: none;
+  box-shadow: none;
+  padding: 0;
+  color: var(--accent);
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+}
+.bc-transit-action #log-reload-btn:hover {
   color: var(--accent-hover);
+  text-decoration: underline;
+}
+
+@media (max-width: 480px) {
+  .bc-transit-body {
+    flex-direction: row;
+    align-items: center;
+    gap: 0;
+  }
+  .bc-transit-metrics {
+    flex: 1;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+  .bc-transit-section {
+    padding-right: 0;
+    gap: 0;
+  }
+  .bc-transit-section .bc-label { display: none; }
+  .bc-transit-section--fsa {
+    padding-left: 0;
+    border-left: none;
+  }
+  .bc-transit-metrics .bc-values {
+    flex-direction: column;
+    gap: 0.3rem;
+  }
+  .bc-fsa-unit { display: inline; }
+  .bc-transit-action {
+    align-self: stretch;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    margin-top: 0;
+    padding-top: 0;
+    border-top: none;
+    margin-left: 1rem;
+    padding-left: 1rem;
+    border-left: 1px solid var(--border);
+  }
+}
+
+.bc-leave-row {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem;
+}
+@media (max-width: 480px) {
+  .bc-leave-row { grid-template-columns: 1fr; }
+}
+
+.bc-leave-more {
+  grid-column: 1 / -1;
+  display: flex;
+  justify-content: flex-end;
+  margin-top: -0.25rem;
+}
+.bc-leave-more #leave-history-btn {
+  background: none;
+  border: none;
+  box-shadow: none;
+  padding: 0;
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+}
+.bc-leave-more #leave-history-btn:hover { color: var(--accent); }
+
+/* Leave history dialog */
+.lh-section { margin-bottom: 1.25rem; }
+.lh-section:last-child { margin-bottom: 0; }
+.lh-title {
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--muted);
+  margin-bottom: 0.6rem;
+}
+.lh-grid {
+  display: grid;
+  grid-template-columns: auto 1fr 1fr;
+  gap: 0.3rem 1rem;
+  font-variant-numeric: tabular-nums;
+}
+.lh-col-head {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--muted);
+}
+.lh-row-head {
+  font-size: 0.78rem;
+  color: var(--muted);
+  padding-right: 0.5rem;
+}
+.lh-grid div:not(.lh-col-head):not(.lh-row-head) {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.bc-cash-aside {
+  font-size: 0.8rem;
+  color: var(--muted);
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+/* Upcoming section */
+.upcoming-header { margin-bottom: 0.75rem; }
+.upcoming-header h2 { margin-bottom: 0; }
+
+#upcoming-body {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0;
+}
+
+.upcoming-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  padding: 0 1rem 0 0;
+  border-right: 1px solid var(--border);
+  margin-right: 1rem;
+}
+.upcoming-item:last-child {
+  border-right: none;
+  margin-right: 0;
+  padding-right: 0;
+}
+
+.upcoming-date {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.upcoming-label {
+  font-size: 0.88rem;
+  font-weight: 500;
+  color: var(--text);
+  line-height: 1.3;
+}
+
+.upcoming-empty {
+  font-size: 0.84rem;
+  color: var(--muted);
+  grid-column: 1 / -1;
+}
+
+@media (max-width: 900px) {
+  #upcoming-body { grid-template-columns: 1fr; }
+  .upcoming-item {
+    padding: 0.5rem 0;
+    border-right: none;
+    margin-right: 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .upcoming-item:last-child { border-bottom: none; }
+}
+
+.pill-depletion {
+  background: var(--accent-soft);
+  color: var(--accent);
+  border: 1px solid var(--accent-ring);
 }
 
 /* Adjust dialog */
@@ -963,7 +1188,7 @@ dialog menu {
 /* scrolls internally — without that cap it would explode the grid.      */
 
 @media (min-width: 1024px) {
-  main#app { max-width: 1320px; padding-top: 3rem; }
+  main#app { max-width: 1320px; padding-top: 1.5rem; }
 
   #main {
     display: grid;
@@ -971,9 +1196,10 @@ dialog menu {
     grid-template-areas:
       "header   header"
       "balances calendar"
-      "summary  calendar";
-    column-gap: 3rem;
-    row-gap: 3rem;
+      "summary  calendar"
+      "upcoming upcoming";
+    column-gap: 1.5rem;
+    row-gap: 1rem;
     align-items: start;
   }
 
@@ -981,6 +1207,7 @@ dialog menu {
   #summary       { grid-area: summary;  margin-bottom: 0; }
   #balances      { grid-area: balances; margin-bottom: 0; }
   #calendar      { grid-area: calendar; margin-bottom: 0; }
+  #upcoming      { grid-area: upcoming; margin-bottom: 0; }
 
   /* Calendar stretches to match the left column. Drop agenda's
      content-driven intrinsic height so the calendar card doesn't push
