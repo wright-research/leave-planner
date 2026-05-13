@@ -1,6 +1,6 @@
 // App entry point. Loads state, renders views, hooks up events.
 
-import { DEMO_MODE } from './lib/supabase.js';
+import { DEMO_MODE, supabase } from './lib/supabase.js';
 import {
   state, subscribe, loadAll, setFilter,
   setAnchor, upsertCalendarEntry, deleteCalendarEntry, logReload,
@@ -50,6 +50,16 @@ $('#theme-toggle').addEventListener('click', () => {
   localStorage.setItem('theme', next);
 });
 
+function showApp() {
+  $('#login-screen').hidden = true;
+  $('#app').hidden = false;
+}
+
+function showLogin() {
+  $('#app').hidden = true;
+  $('#login-screen').hidden = false;
+}
+
 async function init() {
   if (DEMO_MODE) {
     document.title = 'DepletionSked (demo)';
@@ -57,9 +67,51 @@ async function init() {
     banner.className = 'demo-banner';
     banner.textContent = 'Demo mode — data is seeded from fixtures and changes do not persist.';
     document.body.prepend(banner);
+    showApp();
+    await loadAll();
+    return;
   }
-  await loadAll();
+
+  // Listen for auth changes — handles magic link callback automatically.
+  supabase.auth.onAuthStateChange(async (event, session) => {
+    if (session) {
+      showApp();
+      await loadAll();
+    } else {
+      showLogin();
+    }
+  });
+
+  // Check for an existing session on load.
+  const { data: { session } } = await supabase.auth.getSession();
+  if (session) {
+    showApp();
+    await loadAll();
+  } else {
+    showLogin();
+  }
 }
+
+$('#login-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const email = $('#login-email').value.trim();
+  const msg = $('#login-message');
+  const btn = $('#login-form button');
+  btn.disabled = true;
+  btn.textContent = 'Sending…';
+  const { error } = await supabase.auth.signInWithOtp({
+    email,
+    options: { emailRedirectTo: window.location.href },
+  });
+  if (error) {
+    msg.textContent = `Error: ${error.message}`;
+    btn.disabled = false;
+    btn.textContent = 'Send sign-in link';
+  } else {
+    msg.textContent = `Check your email — a sign-in link was sent to ${email}.`;
+    $('#login-form').hidden = true;
+  }
+});
 
 // --- Event wiring ---
 

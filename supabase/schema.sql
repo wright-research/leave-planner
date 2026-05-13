@@ -1,9 +1,8 @@
--- DepletionSked schema — single-user, no authentication.
--- The Supabase anon key is exposed in the deployed JS bundle. That means
--- anyone with the URL can read/write these tables. Acceptable here because
--- the data is non-sensitive (trip counts, leave hours, FSA balance) and the
--- app is a personal Pages site that won't be discovered by random scanners.
--- If that calculus changes later, re-introduce auth and RLS.
+-- DepletionSked schema — single-user, magic-link auth, RLS enabled.
+-- The anon key is exposed in the client bundle (GitHub Pages), so RLS ensures
+-- only the authenticated session owner can read or write any row.
+-- Policies use `to authenticated` with `using (true)` — no per-row user_id
+-- needed because this is a single-user app.
 --
 -- Run this once in the Supabase SQL editor. Drops any existing tables first,
 -- so it's safe to re-run during early development.
@@ -56,6 +55,17 @@ create table public.reload_log (
 
 create index reload_log_date_idx on public.reload_log (reload_date desc);
 
--- RLS intentionally NOT enabled. Without it, the anon role can CRUD these
--- tables directly via PostgREST, which is exactly what the no-auth client
--- relies on.
+-- RLS: block unauthenticated access. Policies are permissive for any
+-- authenticated session — no per-row user_id filter needed (single user).
+alter table public.balances         enable row level security;
+alter table public.calendar_entries enable row level security;
+alter table public.reload_log       enable row level security;
+
+create policy "authenticated full access" on public.balances
+  for all to authenticated using (true) with check (true);
+
+create policy "authenticated full access" on public.calendar_entries
+  for all to authenticated using (true) with check (true);
+
+create policy "authenticated full access" on public.reload_log
+  for all to authenticated using (true) with check (true);
