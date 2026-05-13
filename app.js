@@ -98,7 +98,7 @@ $('#login-form').addEventListener('submit', async (e) => {
   btn.textContent = 'Sending…';
   const { error } = await supabase.auth.signInWithOtp({
     email,
-    options: { emailRedirectTo: window.location.href },
+    options: { emailRedirectTo: window.location.origin + window.location.pathname },
   });
   if (error) {
     msg.textContent = `Error: ${error.message}`;
