@@ -112,10 +112,7 @@ body {
 main#app {
   max-width: 1320px;
   margin: 0 auto;
-  /* padding-top matches the grid's row-gap so the header sits visually
-     centered in the band between the top of the viewport and the first
-     row of cards (overridden per breakpoint below). */
-  padding: 1rem 1.25rem 1.5rem;
+  padding: clamp(1rem, 3vh, 3rem) clamp(1.25rem, 2.5vw, 3rem);
 }
 
 #main {
@@ -127,7 +124,7 @@ main#app {
     "balances calendar"
     "summary  calendar"
     "upcoming upcoming";
-  gap: 0.75rem;
+  gap: clamp(0.75rem, 2vh, 2rem);
   align-items: start;
 }
 #main > header    { grid-area: header; }
@@ -243,12 +240,86 @@ h2 {
 .card {
   background: var(--surface);
   border-radius: 16px;
-  padding: 1.25rem;
+  padding: clamp(1.25rem, 2.5vh, 2.5rem);
   margin-bottom: 0;
   box-shadow: var(--shadow-card);
 }
-#summary.card { padding: 1.4rem 1.4rem 1.5rem; }
+#summary.card { padding: clamp(1.4rem, 2.5vh, 2.5rem); }
 #calendar.card { display: flex; flex-direction: column; }
+
+/* --- Actions menu (··· button) --------------------------------------- */
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+#actions-container {
+  position: relative;
+  flex-shrink: 0;
+}
+
+#actions-toggle {
+  width: 2.4rem;
+  height: 2.4rem;
+  padding: 0;
+  border-radius: 999px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 1.1rem;
+  letter-spacing: 0.05em;
+  box-shadow: var(--shadow-card);
+  transition: color 0.15s ease, background 0.15s ease;
+}
+#actions-toggle:hover { color: var(--accent); background: var(--surface-hover); }
+
+.actions-menu {
+  position: absolute;
+  top: calc(100% + 0.4rem);
+  right: 0;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: var(--shadow-pop);
+  min-width: 11rem;
+  display: flex;
+  flex-direction: column;
+  padding: 0.35rem;
+  z-index: 200;
+}
+
+.actions-menu-item {
+  background: none;
+  border: none;
+  box-shadow: none;
+  text-align: left;
+  padding: 0.55rem 0.75rem;
+  border-radius: 6px;
+  font-size: 0.88rem;
+  font-weight: 500;
+  color: var(--muted);
+  cursor: pointer;
+  transition: background 0.1s ease, color 0.1s ease;
+}
+.actions-menu-item:hover { background: var(--surface-hover); color: var(--text); }
+
+.actions-menu-item--primary {
+  color: var(--text);
+  font-weight: 600;
+}
+.actions-menu-item--primary:hover { background: var(--accent-soft); color: var(--accent); }
+
+.actions-menu-divider {
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: 0.3rem 0.4rem;
+}
 
 /* --- Theme toggle button --------------------------------------------- */
 
@@ -627,7 +698,7 @@ dialog menu {
   font-weight: 700;
 }
 .tile-value {
-  font-size: 1.6rem;
+  font-size: 1.4rem;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
   letter-spacing: -0.02em;
@@ -844,110 +915,55 @@ dialog menu {
   margin-bottom: 1rem;
 }
 .balances-header h2 { margin-bottom: 0; }
-.bc-adjust {
-  font-size: 0.72rem;
-  font-weight: 600;
-  padding: 0.3rem 0.7rem;
-  border-radius: 6px;
-  border: 1px solid var(--border);
-  background: var(--surface);
-  color: var(--accent);
-  cursor: pointer;
-  transition: background 0.12s ease, border-color 0.12s ease;
-}
-.bc-adjust:hover {
-  background: var(--accent-soft);
-  border-color: var(--accent);
-}
 
 .transit-card { grid-column: 1 / -1; }
-.balance-card.transit-card { padding-left: 0.75rem; }
+.balance-card.transit-card { padding-left: 1rem; }
 
 .bc-transit-body {
-  display: flex;
-  flex-direction: column;
-  gap: 0.45rem;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  column-gap: 2rem;
+  row-gap: 0.3rem;
+  padding-left: 0.75rem;
 }
 
 .bc-transit-metrics {
-  display: flex;
-  align-items: stretch;
+  display: contents;
 }
 
 .bc-transit-section {
-  flex: 1;
   display: flex;
   flex-direction: column;
   gap: 0.45rem;
-  padding-right: 1.5rem;
-}
-
-.bc-transit-section--fsa {
-  padding-right: 0;
-  padding-left: 1.5rem;
-  border-left: 1px solid var(--border);
 }
 
 .bc-fsa-unit { display: none; }
 
-.bc-transit-action {
-  display: flex;
-  justify-content: flex-end;
-}
-
-.bc-transit-action #log-reload-btn {
-  background: none;
-  border: none;
-  box-shadow: none;
-  padding: 0;
-  color: var(--accent);
-  font-size: 0.75rem;
-  font-weight: 600;
-  letter-spacing: 0.02em;
-  cursor: pointer;
-}
-.bc-transit-action #log-reload-btn:hover {
-  color: var(--accent-hover);
-  text-decoration: underline;
-}
-
 @media (max-width: 480px) {
+  .balance-card.leave-card { padding-left: 0; }
+
   .bc-transit-body {
+    display: flex;
     flex-direction: row;
     align-items: center;
     gap: 0;
+    padding-left: 0;
   }
   .bc-transit-metrics {
+    display: flex;
     flex: 1;
     flex-direction: column;
     gap: 0.75rem;
   }
   .bc-transit-section {
-    padding-right: 0;
     gap: 0;
   }
   .bc-transit-section .bc-label { display: none; }
-  .bc-transit-section--fsa {
-    padding-left: 0;
-    border-left: none;
-  }
   .bc-transit-metrics .bc-values {
     flex-direction: column;
     gap: 0.3rem;
   }
   .bc-fsa-unit { display: inline; }
-  .bc-transit-action {
-    align-self: stretch;
-    flex-direction: column;
-    justify-content: center;
-    align-items: center;
-    margin-top: 0;
-    padding-top: 0;
-    border-top: none;
-    margin-left: 1rem;
-    padding-left: 1rem;
-    border-left: 1px solid var(--border);
-  }
 }
 
 .bc-leave-row {
@@ -960,24 +976,6 @@ dialog menu {
   .bc-leave-row { grid-template-columns: 1fr; }
 }
 
-.bc-leave-more {
-  grid-column: 1 / -1;
-  display: flex;
-  justify-content: flex-end;
-  margin-top: -0.25rem;
-}
-.bc-leave-more #leave-history-btn {
-  background: none;
-  border: none;
-  box-shadow: none;
-  padding: 0;
-  color: var(--muted);
-  font-size: 0.72rem;
-  font-weight: 600;
-  letter-spacing: 0.02em;
-  cursor: pointer;
-}
-.bc-leave-more #leave-history-btn:hover { color: var(--accent); }
 
 /* Leave history dialog */
 .lh-section { margin-bottom: 1.25rem; }

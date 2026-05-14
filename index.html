@@ -27,7 +27,17 @@
     <section id="main">
       <header>
         <h1>ARC&nbsp;Commute&nbsp;&amp; Leave&nbsp;Planner</h1>
-        <button id="theme-toggle" type="button" aria-label="Toggle light/dark theme" title="Toggle theme">
+        <div class="header-actions">
+          <div id="actions-container">
+            <button id="actions-toggle" type="button" aria-label="Actions" title="Actions">&#xB7;&#xB7;&#xB7;</button>
+            <div id="actions-menu" class="actions-menu" hidden>
+              <button id="menu-adjust" type="button" class="actions-menu-item actions-menu-item--primary">Adjust balances</button>
+              <hr class="actions-menu-divider" />
+              <button id="menu-log-reload" type="button" class="actions-menu-item">Log a reload</button>
+              <button id="menu-leave-history" type="button" class="actions-menu-item">Historic leave usage</button>
+            </div>
+          </div>
+          <button id="theme-toggle" type="button" aria-label="Toggle light/dark theme" title="Toggle theme">
           <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
             <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
           </svg>
@@ -36,6 +46,7 @@
             <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/>
           </svg>
         </button>
+        </div>
       </header>
 
       <!-- Zone 1: summary card -->
@@ -47,7 +58,6 @@
       <section id="balances" class="card">
         <header class="balances-header">
           <h2>Current balances</h2>
-          <button id="adjust-balances-btn" type="button" class="bc-adjust">Adjust&hellip;</button>
         </header>
         <div id="balances-body"></div>
       </section>

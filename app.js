@@ -118,17 +118,32 @@ $('#filter-historic').addEventListener('change', (e) => {
   setFilter('showHistoric', e.target.checked);
 });
 
-// Delegated so buttons survive re-renders inside #balances-body.
-$('#balances').addEventListener('click', (e) => {
-  if (e.target.closest('#log-reload-btn')) {
-    const dlg = $('#reload-dialog');
-    dlg.querySelector('input[name="reload_date"]').value = formatDate(TODAY);
-    dlg.showModal();
-    return;
-  }
-  if (e.target.closest('#adjust-balances-btn')) { openAdjustDialog(); return; }
-  if (e.target.closest('#leave-history-btn'))   { openLeaveHistoryDialog(); return; }
+// --- Actions menu (··· button in header) ---
+
+const actionsToggle = $('#actions-toggle');
+const actionsMenu   = $('#actions-menu');
+
+actionsToggle.addEventListener('click', (e) => {
+  e.stopPropagation();
+  actionsMenu.hidden = !actionsMenu.hidden;
 });
+
+document.addEventListener('click', (e) => {
+  if (!actionsMenu.hidden && !actionsMenu.contains(e.target)) {
+    actionsMenu.hidden = true;
+  }
+});
+
+function closeMenu() { actionsMenu.hidden = true; }
+
+$('#menu-adjust').addEventListener('click', () => { closeMenu(); openAdjustDialog(); });
+$('#menu-log-reload').addEventListener('click', () => {
+  closeMenu();
+  const dlg = $('#reload-dialog');
+  dlg.querySelector('input[name="reload_date"]').value = formatDate(TODAY);
+  dlg.showModal();
+});
+$('#menu-leave-history').addEventListener('click', () => { closeMenu(); openLeaveHistoryDialog(); });
 
 // --- Adjust balance dialog ---
 
@@ -494,7 +509,7 @@ function renderBalances(s) {
       <div class="bc-transit-body">
         <div class="bc-transit-metrics">
           <div class="bc-transit-section">
-            <div class="bc-label"><span class="bc-emoji">🚌</span> Breeze Card</div>
+            <div class="bc-label">Breeze Card</div>
             <div class="bc-values">
               <div class="bc-pair">
                 <span class="bc-num">${today.pass_balance}</span>
@@ -504,7 +519,7 @@ function renderBalances(s) {
             </div>
           </div>
           <div class="bc-transit-section bc-transit-section--fsa">
-            <div class="bc-label"><span class="bc-emoji">💳</span> FSA</div>
+            <div class="bc-label">FSA</div>
             <div class="bc-values">
               <div class="bc-pair">
                 <span class="bc-num">${fmtMoney(today.fund_balance)}</span>
@@ -512,9 +527,6 @@ function renderBalances(s) {
               </div>
             </div>
           </div>
-        </div>
-        <div class="bc-transit-action">
-          <button id="log-reload-btn" type="button">Log a reload</button>
         </div>
     </div>`;
 
@@ -547,7 +559,6 @@ function renderBalances(s) {
   $('#balances-body').innerHTML = `
     <div class="balance-grid">${transit}<div class="bc-leave-divider"></div>
       <div class="bc-leave-row">${annual}${sick}</div>
-      <div class="bc-leave-more"><button id="leave-history-btn" type="button">More info</button></div>
     </div>`;
 }
 
@@ -760,19 +771,12 @@ function renderUpcoming(s) {
       return `${fmtUpDate(item.date)}–${item.endDate.getDate()}`;
     return `${fmtUpDate(item.date)} – ${fmtUpDate(item.endDate)}`;
   };
-  const pill = (kind) => {
-    if (kind === 'holiday')   return `<span class="pill pill-holiday">Holiday</span>`;
-    if (kind === 'depletion') return `<span class="pill pill-depletion">Depletion</span>`;
-    return '';
-  };
-
   $('#upcoming-body').innerHTML = items.length === 0
     ? `<div class="upcoming-empty">Nothing notable in the next 90 days.</div>`
     : items.map(item => `
         <div class="upcoming-item">
           <span class="upcoming-date">${fmtRange(item)}</span>
           <span class="upcoming-label">${item.label}</span>
-          ${pill(item.kind)}
         </div>`).join('');
 }
 
